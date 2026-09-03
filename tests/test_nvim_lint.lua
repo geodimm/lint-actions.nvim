@@ -90,7 +90,7 @@ T['attach()']['resolves and wraps factory linters by name once'] = function()
   eq(lint.linters.dynamic, factory)
 
   local definition = factory()
-  eq(definition._lint_actions_attached, true)
+  eq(definition._lint_actions_attached, 'tool')
   eq(definition.parser('', -1, vim.fn.getcwd()), diagnostics)
 end
 
@@ -182,8 +182,90 @@ T['attach()']['rejects invalid options, adapters, and linter values'] = function
   expect_error('source', function()
     helpers.call(integration.attach, { linter = {}, adapter = { parse = function() end } })
   end)
+  expect_error('options.configure', function()
+    helpers.call(integration.attach, { linter = {}, adapter = adapter(), configure = 'invalid' })
+  end)
   expect_error('options.linter must be a linter name or table', function()
     helpers.call(integration.attach, { linter = false, adapter = adapter() })
+  end)
+end
+
+T['attach()']['runs configure on the resolved linter before wrapping its parser'] = function()
+  local configured = 0
+  local diagnostics = { { lnum = 0, col = 0, message = 'message', source = 'tool' } }
+  local definition = {
+    parser = function(_, _, _)
+      return {}
+    end,
+  }
+
+  integration.attach({
+    linter = definition,
+    adapter = adapter(),
+    configure = function(linter)
+      configured = configured + 1
+      linter.args = { '--json' }
+      linter.parser = function(_, _, _)
+        return diagnostics
+      end
+    end,
+  })
+
+  -- The wrapped parser must be the one configure installed, not the original.
+  eq(definition.args, { '--json' })
+  eq(definition.parser('', -1, vim.fn.getcwd()), diagnostics)
+
+  integration.attach({
+    linter = definition,
+    adapter = adapter(),
+    configure = function()
+      configured = configured + 1
+    end,
+  })
+  eq(configured, 1)
+end
+
+T['attach()']['runs configure once for a factory linter'] = function()
+  local configured = 0
+  local lint = mock_nvim_lint({
+    dynamic = function()
+      return {
+        parser = function()
+          return {}
+        end,
+      }
+    end,
+  })
+
+  local function configure(linter)
+    configured = configured + 1
+    linter.args = { '--json' }
+  end
+
+  integration.attach({ linter = 'dynamic', adapter = adapter(), configure = configure })
+  integration.attach({ linter = 'dynamic', adapter = adapter(), configure = configure })
+
+  local definition = lint.linters.dynamic()
+  eq(definition.args, { '--json' })
+  eq(definition._lint_actions_attached, 'tool')
+  eq(configured, 1)
+end
+
+T['attach()']['refuses a configure step once another source wrapped the linter'] = function()
+  local definition = {
+    parser = function()
+      return {}
+    end,
+  }
+  integration.attach({ linter = definition, adapter = adapter() })
+
+  expect_error('attach the markdownlint integration before attaching this linter through nvim_lint', function()
+    integration.attach({
+      linter = definition,
+      adapter = adapter(),
+      source = 'markdownlint',
+      configure = function() end,
+    })
   end)
 end
 

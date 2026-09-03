@@ -171,6 +171,33 @@ T['publish()']['wraps a list of text edits for the published buffer'] = function
   eq(published.edit.documentChanges[1].edits, { first, second })
 end
 
+T['publish()']['offers an item without a range on every line of the buffer'] = function()
+  local bufnr = helpers.new_buffer('publish-whole-buffer.txt', { 'alpha', 'beta', 'gamma' })
+
+  lint_actions.publish({
+    bufnr = bufnr,
+    source = 'tool',
+    items = { { action = { title = 'Whole buffer' } } },
+  })
+
+  eq(#store.actions(bufnr, helpers.range(0, 0, 0, 0)), 1)
+  eq(#store.actions(bufnr, helpers.range(2, 0, 2, 0)), 1)
+  eq(store.actions(bufnr, helpers.range(9, 0, 9, 0)), {})
+end
+
+T['publish()']['accepts positions without a character'] = function()
+  local bufnr = helpers.new_buffer('publish-line-only.txt', { 'alpha', 'beta' })
+
+  lint_actions.publish({
+    bufnr = bufnr,
+    source = 'tool',
+    items = { { range = { start = { line = 1 }, ['end'] = { line = 1 } }, action = { title = 'Second line' } } },
+  })
+
+  eq(store.actions(bufnr, helpers.range(0, 0, 0, 0)), {})
+  eq(#store.actions(bufnr, helpers.range(1, 0, 1, 0)), 1)
+end
+
 local invalid_publications = {
   {
     'rejects a missing options table',

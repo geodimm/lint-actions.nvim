@@ -1,26 +1,8 @@
+local items = require('lint_actions.items')
+
 local M = {}
 
 local batches = {}
-
-local function ranges_overlap(left, right)
-  return left.start.line <= right['end'].line and right.start.line <= left['end'].line
-end
-
-local function kind_matches(kind, only)
-  if not only or #only == 0 then
-    return true
-  end
-  if not kind then
-    return false
-  end
-
-  for _, requested in ipairs(only) do
-    if kind == requested or vim.startswith(kind, requested .. '.') then
-      return true
-    end
-  end
-  return false
-end
 
 ---Replace a source's current batch.
 ---@param batch LintActions.Batch
@@ -62,7 +44,7 @@ function M.actions(bufnr, range, only)
   for source, batch in pairs(batches[bufnr] or {}) do
     if batch.changedtick == changedtick and batch.version == version then
       for _, item in ipairs(batch.items) do
-        if ranges_overlap(item.range, range) and kind_matches(item.action.kind, only) then
+        if items.matches(item, range, only) then
           table.insert(actions, vim.deepcopy(item.action))
         end
       end
@@ -75,10 +57,7 @@ function M.actions(bufnr, range, only)
     M.clear(bufnr, source)
   end
 
-  table.sort(actions, function(left, right)
-    return left.title < right.title
-  end)
-  return actions
+  return items.sort(actions)
 end
 
 ---Reset all state. Intended for tests.

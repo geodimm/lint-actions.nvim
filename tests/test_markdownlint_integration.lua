@@ -69,8 +69,7 @@ T['attach()']['resolves and configures factory linters by name once'] = function
   eq(lint.linters.markdownlint, factory)
   local definition = factory()
   eq(definition.args, { '--stdin', '--config', 'markdownlint.yaml', '--json' })
-  eq(definition._lint_actions_markdownlint_attached, true)
-  eq(definition._lint_actions_attached, true)
+  eq(definition._lint_actions_attached, 'markdownlint')
 end
 
 T['attach()']['rejects invalid options and linter definitions'] = function()

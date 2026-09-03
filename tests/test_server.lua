@@ -59,6 +59,32 @@ T['LSP transport']['publishes native actions, filters them, and rejects stale ba
   eq(vim.api.nvim_buf_get_lines(bufnr, 1, 2, false)[1], 'changed')
 end
 
+T['LSP transport']['returns command-carrying actions unchanged'] = function()
+  local actions = require('lint_actions')
+  local bufnr = helpers.new_buffer(vim.fs.joinpath(vim.fn.getcwd(), 'tests', 'command.txt'), { 'alpha' })
+  local range = helpers.range(0, 0, 0, 5)
+  local command = { title = 'Run it', command = 'my-tool.run', arguments = { 'alpha' } }
+
+  actions.publish({
+    bufnr = bufnr,
+    source = 'tool',
+    items = { { range = range, action = { title = 'Run it', kind = 'quickfix', command = command } } },
+  })
+  eq(
+    vim.wait(1000, function()
+      local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'lint-actions' })[1]
+      return client ~= nil and client.initialized == true
+    end),
+    true
+  )
+
+  -- Neovim routes this to `vim.lsp.commands`, so the whole command has to
+  -- survive publication rather than being reduced to its edit.
+  local found = helpers.request(bufnr, range)
+  eq(#found, 1)
+  eq(found[1].command, command)
+end
+
 T['_cmd()'] = MiniTest.new_set()
 
 T['_cmd()']['implements initialization, shutdown, unsupported methods, and one exit'] = function()

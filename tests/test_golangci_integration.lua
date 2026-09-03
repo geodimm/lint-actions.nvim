@@ -33,14 +33,14 @@ T['attach()']['uses the default nvim-lint linter and bundled adapter'] = functio
   local wrapped = definition.parser
   integration.attach()
 
-  eq(definition._lint_actions_attached, true)
+  eq(definition._lint_actions_attached, 'golangci-lint')
   eq(definition.parser, wrapped)
 end
 
 T['attach()']['accepts a concrete linter and source override'] = function()
   local definition = linter()
   integration.attach({ linter = definition, source = 'custom-golangci' })
-  eq(definition._lint_actions_attached, true)
+  eq(definition._lint_actions_attached, 'custom-golangci')
 end
 
 T['attach()']['rejects invalid options'] = function()
