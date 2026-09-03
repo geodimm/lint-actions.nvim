@@ -219,6 +219,15 @@ require('lint_actions').register({
 fast. A provider that raises is reported and skipped without affecting the
 rest of the request. See `:help lint-actions-providers`.
 
+## Health
+
+`:checkhealth lint_actions` reports the Neovim requirement, every attached
+nvim-lint integration, and every registered provider. A misconfigured
+integration is otherwise silent, since lint-actions only sees output that
+nvim-lint produces, so the check warns when an attached linter is in no
+`linters_by_ft` entry, when nvim-lint has no linter under that name, or when
+a linter's command is not executable.
+
 See [the architecture note](ARCHITECTURE.md) for the data flow and stale-edit guarantees.
 
 Development setup and commands are in [CONTRIBUTING.md](CONTRIBUTING.md).

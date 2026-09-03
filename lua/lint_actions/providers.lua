@@ -135,6 +135,14 @@ function M.actions(bufnr, range, only)
   return actions
 end
 
+---Report the registered sources, for `:checkhealth`.
+---@return string[]
+function M.sources()
+  local sources = vim.tbl_keys(providers)
+  table.sort(sources)
+  return sources
+end
+
 ---Reset all state. Intended for tests.
 function M._reset()
   providers = {}

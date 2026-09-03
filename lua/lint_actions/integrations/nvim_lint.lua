@@ -2,15 +2,25 @@ local items = require('lint_actions.items')
 
 local M = {}
 local wrapped_factories = setmetatable({}, { __mode = 'k' })
+---@type table<string, LintActions.NvimLintAttachment>
+local attachments = {}
 
 ---@alias LintActions.NvimLintParser fun(output: string, bufnr: integer, cwd: string): vim.Diagnostic[]
 
 ---@class LintActions.NvimLintLinter
 ---@field parser LintActions.NvimLintParser
+---@field cmd? string|fun(): string
 ---@field args? (string|fun(): string)[]
 ---@field _lint_actions_attached? string Source that wrapped this linter.
 
 ---@alias LintActions.NvimLintConfigure fun(linter: LintActions.NvimLintLinter)
+
+---How nvim-lint stores a linter: a definition, or a factory rebuilt per run.
+---@alias LintActions.NvimLintEntry LintActions.NvimLintLinter|(fun(): LintActions.NvimLintLinter)
+
+---@class LintActions.NvimLintAttachment
+---@field source string Source the wrapped linter publishes under.
+---@field linter? string nvim-lint linter name, absent when a definition was passed directly.
 
 ---@class LintActions.NvimLintOptions
 ---@field linter string|LintActions.NvimLintLinter nvim-lint linter name or concrete definition.
@@ -110,6 +120,24 @@ function M.attach(options)
   else
     error('options.linter must be a linter name or table')
   end
+
+  local name = type(linter_option) == 'string' and linter_option or nil
+  attachments[source .. '\0' .. (name or '')] = { source = source, linter = name }
+end
+
+---Report what has been attached, for `:checkhealth`.
+---@return LintActions.NvimLintAttachment[]
+function M.attachments()
+  local list = vim.tbl_values(attachments)
+  table.sort(list, function(left, right)
+    return left.source < right.source
+  end)
+  return vim.deepcopy(list)
+end
+
+---Reset all state. Intended for tests.
+function M._reset()
+  attachments = {}
 end
 
 return M
