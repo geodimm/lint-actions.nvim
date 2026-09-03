@@ -5,6 +5,7 @@ local wrapped_factories = setmetatable({}, { __mode = 'k' })
 
 ---@class LintActions.NvimLintLinter
 ---@field parser LintActions.NvimLintParser
+---@field args? (string|fun(): string)[]
 ---@field _lint_actions_attached? boolean
 
 ---@class LintActions.NvimLintOptions
@@ -60,9 +61,12 @@ function M.attach(options)
   vim.validate('options', options, 'table')
   vim.validate('options.adapter', options.adapter, 'table')
   vim.validate('options.adapter.parse', options.adapter.parse, 'function')
-  vim.validate('source', options.source or options.adapter.source, 'string')
 
-  local source = options.source or options.adapter.source
+  local source = options.source
+  if source == nil then
+    source = options.adapter.source
+  end
+  vim.validate('source', source, 'string')
   local linter_option = options.linter
   if type(linter_option) == 'string' then
     local lint = require('lint')

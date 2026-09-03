@@ -13,7 +13,6 @@ With `vim.pack` on Neovim 0.12 or newer:
 ```lua
 vim.pack.add({
   'https://github.com/geodimm/lint-actions.nvim',
-  'https://github.com/mfussenegger/nvim-lint',
 })
 ```
 
@@ -22,27 +21,34 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 ```lua
 {
   'geodimm/lint-actions.nvim',
-  dependencies = { 'mfussenegger/nvim-lint' },
 }
 ```
 
 ## Setup
 
-Connect fixes produced by [nvim-lint](https://github.com/mfussenegger/nvim-lint) and [golangci-lint](https://github.com/golangci/golangci-lint):
-
 ```lua
-local lint = require('lint')
-
 require('lint_actions').setup()
-require('lint_actions.integrations.nvim_lint').attach({
-  linter = 'golangcilint',
-  adapter = require('lint_actions.adapters.golangci'),
-})
-
-lint.linters_by_ft.go = { 'golangcilint' }
 ```
 
-Install the `golangci-lint` executable and trigger `nvim-lint` as usual. This plugin reuses the same process output; it does not run the linter again.
+Setup is idempotent and only installs buffer cleanup. Nothing runs until an
+integration or another producer publishes actions.
+
+## Integrations
+
+Integration-specific dependencies, configuration, and behavior live in
+versioned Vim help guides:
+
+- [golangci-lint with nvim-lint](doc/lint-actions-golangci.txt)
+- [markdownlint-cli with nvim-lint](doc/lint-actions-markdownlint.txt)
+
+They are also available inside Neovim with `:help lint-actions-golangci` and
+`:help lint-actions-markdownlint`.
+
+The nvim-lint bridge is also an extension point for other tools. It preserves
+diagnostics from any function-based nvim-lint parser while passing the same
+raw output to a fix adapter. If a tool needs a richer output format, configure
+its arguments and matching parser before attaching the bridge. See
+`:help lint-actions-nvim-lint`.
 
 ## Publishing actions
 

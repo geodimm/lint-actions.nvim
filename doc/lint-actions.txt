@@ -5,7 +5,7 @@ CONTENTS                                                     *lint-actions-conte
 
 1. Introduction                                      |lint-actions-introduction|
 2. Publishing                                              |lint-actions-publish|
-3. Adapters                                                |lint-actions-adapters|
+3. Integrations                                        |lint-actions-integrations|
 4. Health                                                    |lint-actions-health|
 
 ===============================================================================
@@ -53,18 +53,74 @@ Neovim 0.11 or newer is required.
     Parses tool output with `opts.adapter` and publishes the returned items.
 
 ===============================================================================
-3. ADAPTERS                                                     *lint-actions-adapters*
+3. INTEGRATIONS             *lint-actions-integrations* *lint-actions-adapters*
 
-The bundled golangci-lint v2 adapter reads JSON SuggestedFixes: >lua
+Bundled integrations reuse output from nvim-lint and do not launch a second
+linter process. Supported tools and their setup guides are: ~
 
-  require('lint_actions').setup()
+  golangci-lint   |lint-actions-golangci|
+  markdownlint    |lint-actions-markdownlint|
+
+Those guides document dependencies, configuration, available actions, and
+tool-specific caveats.
+
+NVIM-LINT ADAPTER API                              *lint-actions-nvim-lint*
+
+The nvim-lint framework delegates output interpretation to each linter's
+`parser` function. lint-actions wraps that function without taking over
+diagnostic publication: ~
+
+  1. nvim-lint runs the configured command.
+  2. The linter's parser turns its output into `vim.Diagnostic[]`.
+  3. lint-actions passes the same raw output and diagnostics to the adapter.
+  4. The adapter returns code-action items.
+  5. The original diagnostics are returned unchanged to nvim-lint.
+
+This makes any function-based nvim-lint parser an integration point. Power
+users can connect it to a compatible adapter: >lua
+
   require('lint_actions.integrations.nvim_lint').attach({
-    linter = 'golangcilint',
-    adapter = require('lint_actions.adapters.golangci'),
+    linter = 'linter-name',
+    adapter = require('my_adapter'),
+    source = 'optional-source-override',
   })
 <
-The nvim-lint integration wraps the existing parser and does not run another
-linter process.
+`linter` accepts a registered nvim-lint name or a concrete linter definition.
+The adapter must expose `source` and `parse(context)`. The integration wraps
+the existing parser, preserves its diagnostics, and passes the same process
+output to the adapter. It does not change the linter command or arguments.
+
+CHANGING THE OUTPUT FORMAT ~
+
+An adapter may need structured output that the bundled nvim-lint parser does
+not understand. Configure the command arguments and a matching parser before
+attaching lint-actions: >lua
+
+  local lint = require('lint')
+  local adapter = require('my_json_adapter')
+  local linter = lint.linters.my_linter
+
+  table.insert(linter.args, '--json')
+  linter.parser = adapter.diagnostics
+
+  require('lint_actions.integrations.nvim_lint').attach({
+    linter = linter,
+    adapter = adapter,
+  })
+<
+The replacement parser must accept `(output, bufnr, cwd)` and return
+`vim.Diagnostic[]`. The adapter's `parse(context)` receives `context.output`,
+`context.bufnr`, `context.cwd`, and those parsed `context.diagnostics`.
+
+Changing only the output argument would leave the old parser reading the
+wrong format and break diagnostics. Changing the argument and parser together
+keeps nvim-lint diagnostics working while exposing richer data to the adapter.
+The markdownlint integration, |lint-actions-markdownlint|, is a complete
+example of this pattern.
+
+Producers that already have normalized actions can bypass nvim-lint and use
+|lint_actions.publish()|. Raw output can be passed directly through an adapter
+with |lint_actions.ingest()|.
 
 ===============================================================================
 4. HEALTH                                                         *lint-actions-health*
