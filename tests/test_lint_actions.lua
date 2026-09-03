@@ -42,6 +42,48 @@ T['publish()']['versions current-buffer edits without mutating input'] = functio
   eq(published.edit.documentChanges[1].textDocument.version, vim.api.nvim_buf_get_changedtick(bufnr))
 end
 
+T['publish()']['wraps a text edit for the published buffer'] = function()
+  local bufnr = helpers.new_buffer('publish-text-edit.txt', { 'old text' })
+  local range = helpers.range(0, 0, 0, 3)
+  local action = {
+    title = 'Replace text',
+    edit = { range = range, newText = 'new' },
+  }
+
+  lint_actions.publish({
+    bufnr = bufnr,
+    source = 'tool',
+    items = { { range = range, action = action } },
+  })
+
+  local published = store.actions(bufnr, range)[1]
+  local document_edit = published.edit.documentChanges[1]
+  eq(action.edit, { range = range, newText = 'new' })
+  eq(document_edit.textDocument.uri, vim.uri_from_bufnr(bufnr))
+  eq(document_edit.textDocument.version, vim.api.nvim_buf_get_changedtick(bufnr))
+  eq(document_edit.edits, { { range = range, newText = 'new' } })
+end
+
+T['publish()']['wraps a list of text edits for the published buffer'] = function()
+  local bufnr = helpers.new_buffer('publish-text-edits.txt', { 'old text' })
+  local first = { range = helpers.range(0, 0, 0, 3), newText = 'new' }
+  local second = { range = helpers.range(0, 4, 0, 8), newText = 'value' }
+
+  lint_actions.publish({
+    bufnr = bufnr,
+    source = 'tool',
+    items = {
+      {
+        range = first.range,
+        action = { title = 'Replace text', edit = { first, second } },
+      },
+    },
+  })
+
+  local published = store.actions(bufnr, first.range)[1]
+  eq(published.edit.documentChanges[1].edits, { first, second })
+end
+
 local invalid_publications = {
   {
     'rejects a missing options table',

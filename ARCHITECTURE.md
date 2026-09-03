@@ -22,6 +22,10 @@ A producer can call `publish()` directly with normalized actions.
 Tool-specific adapters handle formats such as golangci-lint JSON, while integrations capture output another plugin already produced.
 The [nvim-lint](https://github.com/mfussenegger/nvim-lint) integration wraps its parser and never launches a second process.
 
+For same-buffer fixes, producers may put one `TextEdit` or a list of text edits in an action's `edit` field.
+Publication wraps that shorthand in a versioned `WorkspaceEdit`, which is the type required by the LSP `CodeAction` protocol.
+Producers can instead supply a full `WorkspaceEdit` for multi-document changes or resource operations.
+
 Actions are stored by buffer and source.
 Republishing replaces only that source, so several producers can coexist without coordinating with each other.
 

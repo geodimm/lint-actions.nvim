@@ -7,7 +7,7 @@ local T = MiniTest.new_set()
 
 T['parse()'] = MiniTest.new_set()
 
-T['parse()']['decodes fixes into workspace edits'] = function()
+T['parse()']['decodes fixes into text edits'] = function()
   local path = vim.fs.joinpath(vim.fn.getcwd(), 'tests', 'golangci-decode.go')
   local lines = { 'package example', '', 'var status = 404' }
   local bufnr = helpers.new_buffer(path, lines)
@@ -40,8 +40,8 @@ T['parse()']['decodes fixes into workspace edits'] = function()
 
   eq(#items, 1)
   eq(items[1].action.title, 'Use the HTTP status constant [mnd]')
-  eq(items[1].action.edit.documentChanges[1].edits[1].newText, 'http.StatusNotFound')
-  eq(items[1].action.edit.documentChanges[1].edits[1].range.start, { line = 2, character = 13 })
+  eq(items[1].action.edit[1].newText, 'http.StatusNotFound')
+  eq(items[1].action.edit[1].range.start, { line = 2, character = 13 })
 end
 
 T['parse()']['uses matching diagnostic ranges'] = function()
@@ -135,7 +135,7 @@ T['parse()']['handles representative golangci-lint v2 output'] = function()
   eq(#items, 3)
   local by_title = {}
   for _, item in ipairs(items) do
-    by_title[item.action.title] = item.action.edit.documentChanges[1].edits
+    by_title[item.action.title] = item.action.edit
   end
   local error_edits = by_title['Use `%w` to format errors [errorlint]']
   eq(error_edits[1].newText, 'w')

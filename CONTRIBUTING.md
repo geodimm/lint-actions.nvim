@@ -19,8 +19,6 @@ Test files follow `tests/test_<area>.lua`, where `<area>` names the module or in
 `test_offsets.lua`, `test_store.lua`, or `test_nvim_lint.lua`). Within a file, nest cases under the public function
 name such as `to_position()` or `attach()`. Shared setup belongs in `tests/helpers.lua`.
 
-Run one file with `make test-file FILE=tests/test_offsets.lua`.
-
 To exercise the pull-request workflow locally, start Docker and install [`act`](https://github.com/nektos/act):
 
 ```sh

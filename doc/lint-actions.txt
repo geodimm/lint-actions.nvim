@@ -27,7 +27,22 @@ Neovim 0.11 or newer is required.
     Fields: ~
       bufnr   Buffer receiving the actions.
       source  Stable producer identifier.
-      items   List of `{ range = lsp.Range, action = lsp.CodeAction }`.
+      items   List of `{ range = lsp.Range, action = action }`. Each action is
+              an `lsp.CodeAction`, except its `edit` may also be one
+              `lsp.TextEdit` or a list of text edits targeting `bufnr`.
+
+    Same-buffer fixes should normally use the TextEdit shorthand: >lua
+
+      action = {
+        title = 'Apply suggested fix',
+        kind = 'quickfix',
+        edit = { range = edit_range, newText = replacement },
+      }
+<
+    `publish()` wraps text edits in a versioned `lsp.WorkspaceEdit`. Supply a
+    full WorkspaceEdit for multi-document edits or file operations. Both forms
+    remain declarative and can be diffed by preview-capable code-action UIs;
+    command-only actions generally cannot be previewed.
 
                                                                *lint_actions.clear()*
 `clear({opts})`

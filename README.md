@@ -62,12 +62,46 @@ lint_actions.publish({
       action = {
         title = 'Apply suggested fix',
         kind = 'quickfix',
-        edit = workspace_edit,
+        edit = { range = edit_range, newText = replacement },
       },
     },
   },
 })
 ```
+
+`action.edit` accepts one `lsp.TextEdit`, a list of text edits, or an
+`lsp.WorkspaceEdit`. A text edit only describes a range replacement, so
+`publish()` targets it at `bufnr` and wraps it in a versioned workspace edit.
+This is the recommended form for ordinary same-buffer linter fixes:
+
+```lua
+action = {
+  title = 'Apply all replacements',
+  kind = 'quickfix',
+  edit = {
+    { range = first_range, newText = first_replacement },
+    { range = second_range, newText = second_replacement },
+  },
+}
+```
+
+Use a full workspace edit when an action changes several documents or performs
+ordered file operations:
+
+```lua
+action.edit = {
+  documentChanges = {
+    { textDocument = { uri = first_uri }, edits = first_edits },
+    { textDocument = { uri = second_uri }, edits = second_edits },
+  },
+}
+```
+
+Both inputs are returned to Neovim as `CodeAction`s containing a
+`WorkspaceEdit`, so preview-capable code-action pickers can compute a diff for
+either one. An opaque `command`, rather than the choice between `TextEdit` and
+`WorkspaceEdit`, is what normally prevents an edit preview. Neovim's built-in
+code-action selector applies edits but does not itself render a diff preview.
 
 See [the architecture note](ARCHITECTURE.md) for the data flow and stale-edit guarantees.
 

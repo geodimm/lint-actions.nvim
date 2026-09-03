@@ -97,7 +97,6 @@ function M.parse(context)
   end
 
   local filename = absolute(vim.api.nvim_buf_get_name(context.bufnr), context.cwd)
-  local uri = vim.uri_from_bufnr(context.bufnr)
   local text = offsets.buffer_text(context.bufnr)
   local ranges = diagnostic_ranges(context.diagnostics)
   local items = {}
@@ -121,14 +120,7 @@ function M.parse(context)
             action = {
               title = title,
               kind = 'quickfix',
-              edit = {
-                documentChanges = {
-                  {
-                    textDocument = { uri = uri },
-                    edits = edits,
-                  },
-                },
-              },
+              edit = edits,
             },
           })
         end
