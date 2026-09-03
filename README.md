@@ -78,19 +78,37 @@ function if you want finer control.
 
 ## Integrations
 
-Each integration has its own help page covering its requirements, options, and quirks:
+Each bundled integration or adapter has a help page covering its requirements, options, and quirks:
 
 - [golangci-lint with nvim-lint](doc/lint-actions-golangci.txt)
 - [markdownlint-cli with nvim-lint](doc/lint-actions-markdownlint.txt)
 - [shellcheck with nvim-lint](doc/lint-actions-shellcheck.txt)
+- [Reusable SARIF adapter](doc/lint-actions-sarif.txt)
 
 They are also available in Neovim as `:help lint-actions-golangci`,
-`:help lint-actions-markdownlint`, and `:help lint-actions-shellcheck`.
+`:help lint-actions-markdownlint`, `:help lint-actions-shellcheck`, and
+`:help lint-actions-sarif`.
 
 The nvim-lint bridge works for other tools too. It keeps the diagnostics from
 any function-based nvim-lint parser while handing the same raw output to a fix
 adapter. If your tool needs richer output, set its arguments and a matching
 parser before attaching. See `:help lint-actions-nvim-lint`.
+
+Tools that emit SARIF 2.1.0 fixes can share the bundled adapter instead of
+needing a tool-specific one:
+
+```lua
+require('lint_actions.integrations.nvim_lint').attach({
+  linter = 'my_sarif_linter',
+  adapter = require('lint_actions.adapters.sarif'),
+  source = 'my-sarif-linter',
+})
+```
+
+The linter must already emit SARIF and parse its diagnostics from the same
+output. The adapter supports alternative fixes, ordered text replacements,
+URI base IDs, artifact indices, both SARIF column units, and multi-file fixes.
+See `:help lint-actions-sarif` for setup details and safety constraints.
 
 ## Sending fixes to the menu
 

@@ -1,0 +1,92 @@
+*lint-actions-sarif.txt*                    reusable SARIF fix adapter
+
+===============================================================================
+SARIF                                                     *lint-actions-sarif*
+
+SARIF 2.1.0 has a standard representation for proposed fixes under
+`result.fixes[].artifactChanges[].replacements[]`. The bundled SARIF adapter
+turns those replacements into native Neovim code actions. It is not tied to a
+particular linter.
+
+- SARIF 2.1.0: https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/
+
+The adapter reads output another integration has already collected. With
+nvim-lint, attach it to any linter whose command and diagnostic parser already
+consume SARIF: >lua
+
+  require('lint_actions.integrations.nvim_lint').attach({
+    linter = 'my_sarif_linter',
+    adapter = require('lint_actions.adapters.sarif'),
+    source = 'my-sarif-linter',
+  })
+<
+Use a distinct `source` for each linter. `source` defaults to `sarif`, which is
+convenient for one attachment but would cause two SARIF linters on the same
+buffer to replace each other's actions.
+
+If the linter can emit SARIF but its nvim-lint definition uses another output
+format, change the command arguments and diagnostic parser together. The
+exact argument is tool-specific: >lua
+
+  require('lint_actions.integrations.nvim_lint').attach({
+    linter = 'my_linter',
+    adapter = require('lint_actions.adapters.sarif'),
+    source = 'my-linter',
+    configure = function(linter)
+      linter.args = { '--format', 'sarif' } -- use the tool's real arguments
+      linter.parser = require('lint.parser').for_sarif()
+    end,
+  })
+<
+Keep any existing filename, stdin, configuration, or other required arguments
+when adapting a real definition. See |lint-actions-nvim-lint| for the complete
+bridge API and the reason `configure` is needed for factory linters.
+
+A caller that already has raw SARIF can skip nvim-lint and use
+|lint_actions.ingest()| with `require('lint_actions.adapters.sarif')`.
+
+                                                    *lint-actions-sarif-actions*
+A result contributes one `quickfix` action for every valid entry in its
+`fixes` array. Alternative fixes remain separate actions. A fix description
+is used as its title, with the rule id appended in brackets. When a description
+is absent, the result message or rule id supplies a fallback title.
+
+All replacements for one artifact are compiled into a single edit in their
+declared order. This preserves SARIF's offset-shifting semantics and makes
+same-position insertions deterministic. A fix spanning several local files is
+represented as one workspace edit, so selecting it applies the complete fix.
+
+There is deliberately no generic `source.fixAll.sarif` action. SARIF defines
+individual proposed fixes but does not define how fixes from separate results
+should be ordered or how conflicts between them should be resolved.
+
+                                                     *lint-actions-sarif-paths*
+The adapter supports:
+
+  - relative paths resolved against the linter's working directory;
+  - local `file:` URIs and percent-escaped path segments;
+  - `originalUriBaseIds`, including chained base ids;
+  - artifact locations referenced through `run.artifacts` indices;
+  - line/column regions using either SARIF `columnKind`;
+  - character-offset/length regions; and
+  - text replacements in one or several local artifacts.
+
+An action is associated with the linted buffer when one of the result's
+physical locations names that buffer. A result without physical locations is
+associated with a buffer only when its fix changes that buffer. Results
+located exclusively in other files are ignored.
+
+The complete fix is omitted when any part cannot be applied safely. This
+includes malformed or overlapping regions, binary replacements, non-file
+URIs, unreadable artifacts, duplicate artifact changes, and secondary buffers
+with unsaved changes. Unloaded secondary artifacts must use UTF-8; loaded
+buffers use Neovim's decoded text. The adapter never offers half of a
+multi-artifact fix.
+
+The nvim-lint bridge already rejects results computed while the linted buffer
+is modified. Edits to the linted buffer are also versioned when published.
+Secondary files in a workspace edit cannot carry the same freshness guarantee;
+review multi-file changes before applying them when another process may have
+changed those files since the linter ran.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

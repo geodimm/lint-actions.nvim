@@ -61,11 +61,13 @@ Neovim 0.11 or newer is required.
 3. INTEGRATIONS            *lint-actions-integrations* *lint-actions-adapters*
 
 Bundled integrations reuse nvim-lint's output instead of running the linter a
-second time. Each has its own guide: ~
+second time. The reusable SARIF adapter attaches through the generic nvim-lint
+bridge. Each has its own guide: ~
 
   golangci-lint                                        |lint-actions-golangci|
   markdownlint                                     |lint-actions-markdownlint|
   shellcheck                                         |lint-actions-shellcheck|
+  SARIF (reusable)                                         |lint-actions-sarif|
 
 Those guides cover requirements, configuration, which actions you get, and
 tool-specific caveats.
@@ -146,6 +148,11 @@ runs once per linter. Since it has to run before the wrap, attaching without
 leaving the arguments alone.
 
 |lint-actions-markdownlint| is a full worked example of this pattern.
+
+SARIF 2.1.0 tools can share the bundled
+`require('lint_actions.adapters.sarif')` adapter. It reads standard
+`result.fixes` entries, including multi-artifact fixes. Attach it through the
+same API and give each tool a distinct `source`. See |lint-actions-sarif|.
 
 If you already have finished actions, skip nvim-lint entirely and call
 |lint_actions.publish()|. To run raw output through an adapter yourself, use
