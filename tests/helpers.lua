@@ -4,6 +4,15 @@ local M = {}
 
 M.eq = MiniTest.expect.equality
 
+function M.mock_nvim_lint(linters)
+  local previous = package.loaded.lint
+  package.loaded.lint = { linters = linters }
+  MiniTest.finally(function()
+    package.loaded.lint = previous
+  end)
+  return package.loaded.lint
+end
+
 ---@param callback function
 ---@param ... any
 ---@return any

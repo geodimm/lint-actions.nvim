@@ -18,15 +18,6 @@ local function adapter(parse)
   }
 end
 
-local function mock_nvim_lint(linters)
-  local previous = package.loaded.lint
-  package.loaded.lint = { linters = linters }
-  MiniTest.finally(function()
-    package.loaded.lint = previous
-  end)
-  return package.loaded.lint
-end
-
 T['attach()'] = MiniTest.new_set()
 
 T['attach()']['preserves parser results and wraps a concrete linter once'] = function()
@@ -74,7 +65,7 @@ end
 
 T['attach()']['resolves and wraps factory linters by name once'] = function()
   local diagnostics = { { lnum = 0, col = 0, message = 'message', source = 'tool' } }
-  local lint = mock_nvim_lint({
+  local lint = helpers.mock_nvim_lint({
     dynamic = function()
       return {
         parser = function()
@@ -141,7 +132,7 @@ T['attach()']['clears actions instead of ingesting a modified buffer'] = functio
 end
 
 T['attach()']['rejects a non-existing linter name'] = function()
-  mock_nvim_lint({})
+  helpers.mock_nvim_lint({})
   expect_error('unknown nvim-lint linter: missing', function()
     integration.attach({ linter = 'missing', adapter = adapter() })
   end)
@@ -157,7 +148,7 @@ T['attach()']['rejects concrete linter tables without a parser function'] = func
 end
 
 T['attach()']['rejects factories returning invalid linter definitions'] = function()
-  local lint = mock_nvim_lint({
+  local lint = helpers.mock_nvim_lint({
     broken = function()
       return 'invalid'
     end,
@@ -227,7 +218,7 @@ end
 
 T['attach()']['runs configure once for a factory linter'] = function()
   local configured = 0
-  local lint = mock_nvim_lint({
+  local lint = helpers.mock_nvim_lint({
     dynamic = function()
       return {
         parser = function()

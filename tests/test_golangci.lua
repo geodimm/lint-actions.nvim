@@ -1,9 +1,19 @@
 local MiniTest = require('mini.test')
 local adapter = require('lint_actions.adapters.golangci')
 local helpers = require('tests.helpers')
+local integration = require('lint_actions.integrations.golangci')
 
 local eq = helpers.eq
+local expect_error = helpers.expect_error
 local T = MiniTest.new_set()
+
+local function linter()
+  return {
+    parser = function(_, _, _)
+      return {}
+    end,
+  }
+end
 
 T['parse()'] = MiniTest.new_set()
 
@@ -133,6 +143,38 @@ T['parse()']['handles representative golangci-lint v2 output'] = function()
   eq(vim.api.nvim_buf_get_lines(bufnr, 22, 23, false)[1], '\t\treturn fmt.Errorf("fetch failed: %w", err)')
   eq(#by_title['Simplify strings.Index call using strings.Cut [modernize]'], 4)
   eq(by_title['"404" can be replaced by http.StatusNotFound [usestdlibvars]'][1].newText, 'http.StatusNotFound')
+end
+
+T['integration.attach()'] = MiniTest.new_set()
+
+T['integration.attach()']['uses the default nvim-lint linter and bundled adapter'] = function()
+  local definition = linter()
+  helpers.mock_nvim_lint({ golangcilint = definition })
+
+  integration.attach()
+  local wrapped = definition.parser
+  integration.attach()
+
+  eq(definition._lint_actions_attached, 'golangci-lint')
+  eq(definition.parser, wrapped)
+end
+
+T['integration.attach()']['accepts a concrete linter and source override'] = function()
+  local definition = linter()
+  integration.attach({ linter = definition, source = 'custom-golangci' })
+  eq(definition._lint_actions_attached, 'custom-golangci')
+end
+
+T['integration.attach()']['rejects invalid options'] = function()
+  expect_error('options', function()
+    helpers.call(integration.attach, false)
+  end)
+  expect_error('options.linter must be a linter name or table', function()
+    helpers.call(integration.attach, { linter = false })
+  end)
+  expect_error('source', function()
+    helpers.call(integration.attach, { linter = linter(), source = false })
+  end)
 end
 
 return T
