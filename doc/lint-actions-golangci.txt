@@ -16,15 +16,19 @@ REQUIREMENTS ~
 
 CONFIGURATION ~
 
-Attach lint-actions after loading nvim-lint, then configure and trigger the
-linter as usual: >lua
+Configure nvim-lint first, then enable lint-actions and trigger the linter as
+usual: >lua
 
   local lint = require('lint')
-
-  require('lint_actions').setup()
-  require('lint_actions.integrations.golangci').attach()
-
   lint.linters_by_ft.go = { 'golangcilint' }
+
+  require('lint_actions').setup({
+    integrations = {
+      nvim_lint = {
+        golangci = true,
+      },
+    },
+  })
 <
 Trigger nvim-lint from a command, key mapping, or autocmd. Actions are
 published only when the buffer is unmodified, preventing fixes calculated for
@@ -36,11 +40,20 @@ The default linter name is `golangcilint`. Power users can supply a different
 name or concrete nvim-lint definition, and override the publication
 source: >lua
 
-  require('lint_actions.integrations.golangci').attach({
-    linter = require('lint').linters.golangcilint,
-    source = 'my-golangci',
+  require('lint_actions').setup({
+    integrations = {
+      nvim_lint = {
+        golangci = {
+          linter = require('lint').linters.golangcilint,
+          source = 'my-golangci',
+        },
+      },
+    },
   })
 <
+The lower-level `require('lint_actions.integrations.golangci').attach()` API
+accepts the same integration options.
+
 For custom adapters or other nvim-lint tools, use the lower-level
 |lint-actions-nvim-lint| interface.
 

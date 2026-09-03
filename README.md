@@ -34,16 +34,42 @@ require('lint_actions').setup()
 
 The bundled integrations require
 [nvim-lint](https://github.com/mfussenegger/nvim-lint). After installing and
-configuring nvim-lint, attach the integrations for the linters you use:
+configuring nvim-lint, enable the integrations for the linters you use:
 
 ```lua
-require('lint_actions.integrations.golangci').attach()
-require('lint_actions.integrations.markdownlint').attach()
+require('lint_actions').setup({
+  integrations = {
+    nvim_lint = {
+      golangci = true,
+      markdownlint = true,
+    },
+  },
+})
 ```
 
-Setup and integration attachment are idempotent. lint-actions does not run
-linters itself; the integrations reuse output from your existing nvim-lint
-runs.
+Use `true` for the defaults or an options table for an integration-specific
+override:
+
+```lua
+require('lint_actions').setup({
+  integrations = {
+    nvim_lint = {
+      golangci = {
+        linter = 'my_golangcilint',
+        source = 'my-golangci',
+      },
+    },
+  },
+})
+```
+
+Setup is additive and idempotent: later calls may enable more integrations,
+and attaching an already attached integration is harmless. `false` leaves an
+integration disabled; it does not detach one enabled by an earlier call.
+
+lint-actions does not run linters itself. Its integrations reuse output from
+your existing nvim-lint runs. The direct integration `attach()` functions
+remain available for lower-level configuration.
 
 ## Integrations
 

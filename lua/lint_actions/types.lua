@@ -1,5 +1,15 @@
 ---@alias LintActions.Edit lsp.TextEdit|lsp.TextEdit[]|lsp.WorkspaceEdit
 
+---@class LintActions.NvimLintIntegrationOptions
+---@field golangci? boolean|LintActions.GolangciOptions Enable with defaults using `true`, or pass integration options.
+---@field markdownlint? boolean|LintActions.MarkdownlintOptions Enable with defaults using `true`, or pass integration options.
+
+---@class LintActions.IntegrationsOptions
+---@field nvim_lint? false|LintActions.NvimLintIntegrationOptions Tools whose nvim-lint output should provide actions.
+
+---@class LintActions.SetupOptions
+---@field integrations? LintActions.IntegrationsOptions Bundled integrations to attach after their dependencies are configured.
+
 ---@class LintActions.CodeAction : lsp.CodeAction
 ---@field edit? LintActions.Edit A TextEdit or list targets the published buffer; a WorkspaceEdit may target multiple resources.
 

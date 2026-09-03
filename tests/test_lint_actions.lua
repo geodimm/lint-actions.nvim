@@ -9,6 +9,93 @@ local T = MiniTest.new_set({
   hooks = { pre_case = store._reset, post_case = store._reset },
 })
 
+T['setup()'] = MiniTest.new_set()
+
+local function mock_integration(name, attach)
+  local module = 'lint_actions.integrations.' .. name
+  local previous = package.loaded[module]
+  package.loaded[module] = { attach = attach }
+  MiniTest.finally(function()
+    package.loaded[module] = previous
+  end)
+end
+
+T['setup()']['enables integrations with defaults or options'] = function()
+  local calls = {}
+  mock_integration('golangci', function(options)
+    calls.golangci = options
+  end)
+  mock_integration('markdownlint', function(options)
+    calls.markdownlint = options
+  end)
+
+  lint_actions.setup({
+    integrations = {
+      nvim_lint = {
+        golangci = true,
+        markdownlint = { source = 'custom-markdownlint' },
+      },
+    },
+  })
+
+  eq(calls.golangci, {})
+  eq(calls.markdownlint, { source = 'custom-markdownlint' })
+end
+
+T['setup()']['can attach integrations on a later call'] = function()
+  local calls = 0
+  mock_integration('golangci', function()
+    calls = calls + 1
+  end)
+
+  lint_actions.setup()
+  lint_actions.setup({ integrations = { nvim_lint = { golangci = true } } })
+
+  eq(calls, 1)
+end
+
+T['setup()']['ignores explicitly disabled integrations'] = function()
+  local calls = 0
+  mock_integration('golangci', function()
+    calls = calls + 1
+  end)
+
+  lint_actions.setup({ integrations = { nvim_lint = { golangci = false } } })
+  lint_actions.setup({ integrations = { nvim_lint = false } })
+
+  eq(calls, 0)
+end
+
+T['setup()']['rejects invalid options and integrations'] = function()
+  local calls = 0
+  mock_integration('golangci', function()
+    calls = calls + 1
+  end)
+
+  expect_error('options must be table, got boolean', function()
+    helpers.call(lint_actions.setup, false)
+  end)
+  expect_error('options.integrations must be table, got boolean', function()
+    helpers.call(lint_actions.setup, { integrations = true })
+  end)
+  expect_error('unknown setup option: integration', function()
+    lint_actions.setup({ integration = {} })
+  end)
+  expect_error('unknown integration: missing', function()
+    lint_actions.setup({ integrations = { missing = true } })
+  end)
+  expect_error('options.integrations.nvim_lint must be table, got boolean', function()
+    helpers.call(lint_actions.setup, { integrations = { nvim_lint = true } })
+  end)
+  expect_error('unknown nvim_lint integration: missing', function()
+    lint_actions.setup({ integrations = { nvim_lint = { golangci = true, missing = true } } })
+  end)
+  eq(calls, 0)
+  expect_error('options.integrations.nvim_lint.golangci must be boolean or table, got string', function()
+    helpers.call(lint_actions.setup, { integrations = { nvim_lint = { golangci = 'yes' } } })
+  end)
+end
+
 T['publish()'] = MiniTest.new_set()
 
 T['publish()']['treats an empty publication as a source clear'] = function()
