@@ -1,0 +1,57 @@
+*lint-actions-golangci.txt*          golangci-lint actions through nvim-lint
+
+===============================================================================
+GOLANGCI-LINT                                      *lint-actions-golangci*
+
+This integration exposes `SuggestedFixes` from golangci-lint v2 JSON output
+as native Neovim code actions. It reuses nvim-lint's existing process output
+and does not run golangci-lint again.
+
+REQUIREMENTS ~
+
+- Neovim 0.11 or newer.
+- nvim-lint: https://github.com/mfussenegger/nvim-lint
+- golangci-lint v2 available as `golangci-lint`:
+  https://github.com/golangci/golangci-lint
+
+CONFIGURATION ~
+
+Attach lint-actions after loading nvim-lint, then configure and trigger the
+linter as usual: >lua
+
+  local lint = require('lint')
+
+  require('lint_actions').setup()
+  require('lint_actions.integrations.golangci').attach()
+
+  lint.linters_by_ft.go = { 'golangcilint' }
+<
+Trigger nvim-lint from a command, key mapping, or autocmd. Actions are
+published only when the buffer is unmodified, preventing fixes calculated for
+saved file contents from being applied to a different buffer state.
+
+ADVANCED CONFIGURATION ~
+
+The default linter name is `golangcilint`. Power users can supply a different
+name or concrete nvim-lint definition, and override the publication
+source: >lua
+
+  require('lint_actions.integrations.golangci').attach({
+    linter = require('lint').linters.golangcilint,
+    source = 'my-golangci',
+  })
+<
+For custom adapters or other nvim-lint tools, use the lower-level
+|lint-actions-nvim-lint| interface.
+
+ACTIONS ~
+
+Every valid `SuggestedFix` for the current file becomes a `quickfix` action.
+Its title uses the suggested-fix message when available and includes the
+originating linter name.
+
+Text edits are published as versioned workspace edits, so they become stale
+as soon as the buffer changes and remain compatible with preview-capable code
+action pickers.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

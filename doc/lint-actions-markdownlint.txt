@@ -1,0 +1,106 @@
+*lint-actions-markdownlint.txt*      markdownlint actions through nvim-lint
+
+===============================================================================
+MARKDOWNLINT                                    *lint-actions-markdownlint*
+
+This integration exposes structured fixes from markdownlint-cli as native
+Neovim code actions. It reuses nvim-lint's existing process output and does
+not run markdownlint again.
+
+REQUIREMENTS ~
+
+- Neovim 0.11 or newer.
+- nvim-lint: https://github.com/mfussenegger/nvim-lint
+- markdownlint-cli available as `markdownlint`:
+  https://github.com/igorshubovych/markdownlint-cli
+
+CONFIGURATION ~
+
+Attach the integration after loading nvim-lint: >lua
+
+  local lint = require('lint')
+
+  require('lint_actions').setup()
+  require('lint_actions.integrations.markdownlint').attach()
+
+  lint.linters_by_ft.markdown = { 'markdownlint' }
+<
+markdownlint's normal text output does not contain fix information. The
+integration adds `--json` to expose `fixInfo` and, in the same operation,
+replaces nvim-lint's text parser with a compatible JSON diagnostic parser.
+nvim-lint therefore continues to publish diagnostics from the new output
+format. Existing CLI arguments are preserved, and an existing `--json` is not
+duplicated.
+
+ADVANCED CONFIGURATION ~
+
+Configure additional CLI arguments before calling `attach()`; the integration
+preserves them: >lua
+
+  local markdownlint = require('lint').linters.markdownlint
+
+  markdownlint.args = vim.list_extend(markdownlint.args, {
+    '--config',
+    '/path/to/markdownlint.yaml',
+  })
+
+  require('lint_actions.integrations.markdownlint').attach()
+<
+The default linter name is `markdownlint`. Power users can supply a different
+name or concrete definition, and override the publication source: >lua
+
+  require('lint_actions.integrations.markdownlint').attach({
+    linter = 'my_markdownlint',
+    source = 'my-markdownlint',
+  })
+<
+For custom adapters or other nvim-lint tools, use the lower-level
+|lint-actions-nvim-lint| interface.
+
+Trigger nvim-lint after saving the buffer. For example: >lua
+
+  vim.api.nvim_create_autocmd('BufWritePost', {
+    pattern = '*.md',
+    callback = function()
+      require('lint').try_lint('markdownlint')
+    end,
+  })
+<
+Actions are published only when the buffer is unmodified. A lint run triggered
+while the buffer is modified can still update diagnostics, but its fixes are
+not retained because they cannot be proven to match the current buffer.
+
+ACTIONS ~
+
+Each fixable diagnostic gets a `quickfix` action such as: >text
+
+  Fix MD018: No space after hash on atx style heading
+<
+The integration also publishes a file-wide action with the kind
+`source.fixAll.markdownlint`: >text
+
+  Fix all markdownlint issues
+<
+The file-wide edit follows markdownlint's ordering, duplicate removal, and
+overlap handling. Diagnostics for rules without `fixInfo` remain visible but
+do not receive an individual action.
+
+DISABLING FORMAT ON SAVE ~
+
+If a formatter currently invokes `markdownlint --fix` on save, remove
+markdownlint from that format-on-save configuration. Keep it configured in
+nvim-lint so `BufWritePost` refreshes diagnostics and explicit code actions.
+
+For example, with Conform.nvim remove the markdown entry from
+`formatters_by_ft`: >lua
+
+  formatters_by_ft = {
+    -- markdown = { 'markdownlint' },
+  }
+<
+Conform.nvim: https://github.com/stevearc/conform.nvim
+
+The formatter-specific markdownlint definition can also be removed once
+nothing else references it.
+
+vim:tw=78:ts=8:noet:ft=help:norl:
