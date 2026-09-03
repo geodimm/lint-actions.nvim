@@ -1,14 +1,25 @@
 # lint-actions.nvim
 
-Show linter fixes in Neovim's native LSP code actions.
+Show linter fixes and custom actions in Neovim's native LSP code-action UI.
 
 Neovim's code-action UI only queries LSP clients. lint-actions.nvim exposes
-structured fixes from linters through an in-process LSP server, so they appear
-in `vim.lsp.buf.code_action()`, fzf-lua, Telescope, and other LSP-aware pickers.
+structured actions from external tools and Lua providers through an in-process
+LSP server, so they appear in `vim.lsp.buf.code_action()`, fzf-lua, Telescope,
+and other LSP-aware pickers.
+
+Linters are the primary use case, but actions do not have to come from a
+linter. `publish()` accepts actions computed elsewhere, while `register()` lets
+lightweight providers derive actions directly from the current buffer.
 
 ![A golangci-lint fix exposed as a Neovim code action](media/demo.png)
 
-Requires Neovim 0.11 or newer. The core has no dependencies and does not run linters.
+Requires Neovim 0.11 or newer. The core has no dependencies.
+
+The scope is deliberately narrow: lint-actions implements
+`textDocument/codeAction`. It neither runs tools nor advertises diagnostics,
+formatting, or other LSP capabilities, and it provides no code-action UI. The
+selected UI handles selection and any preview; Neovim applies the action and
+manages undo.
 
 ## Installation
 
@@ -109,9 +120,9 @@ output. The adapter supports alternative fixes, ordered text replacements,
 URI base IDs, artifact indices, both SARIF column units, and multi-file fixes.
 See `:help lint-actions-sarif` for setup details and safety constraints.
 
-## Sending fixes to the menu
+## Sending actions to the menu
 
-Every fix has a `source`, a stable string identifying its producer. Sources
+Every action has a `source`, a stable string identifying its producer. Sources
 supply actions in one of two ways:
 
 - `publish()` stores actions computed ahead of the request, typically from a
@@ -264,6 +275,7 @@ when a linter's command is not executable.
 
 ---
 
-[ARCHITECTURE.md](ARCHITECTURE.md) explains how the pieces fit together and how stale fixes are kept out.
+[ARCHITECTURE.md](ARCHITECTURE.md) explains how the pieces fit together and how
+stale actions are kept out.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the development setup and commands.

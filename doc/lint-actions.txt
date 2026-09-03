@@ -14,10 +14,19 @@ CONTENTS                                               *lint-actions-contents*
 1. INTRODUCTION                                    *lint-actions-introduction*
 
 Neovim's code-action UI queries LSP clients. lint-actions.nvim exposes
-structured linter fixes through an in-process LSP server, making them
-available to |vim.lsp.buf.code_action()| and other LSP-aware pickers.
+structured actions from external tools and Lua providers through an in-process
+LSP server, making them available to |vim.lsp.buf.code_action()| and other
+LSP-aware pickers.
 
-It does not run linters, and it does not replace the code-action UI.
+Linters are the primary use case, but actions do not have to come from a
+linter. |lint_actions.publish()| accepts actions computed elsewhere, while
+|lint_actions.register()| lets lightweight providers derive actions directly
+from the current buffer.
+
+The server implements only `textDocument/codeAction`. The plugin does not run
+tools or advertise diagnostics, formatting, or other LSP capabilities, and it
+does not replace the code-action UI. The selected UI handles selection and any
+preview; Neovim applies the action and manages undo.
 
 Neovim 0.11 or newer is required.
 
@@ -157,7 +166,7 @@ If you already have finished actions, skip nvim-lint entirely and call
 ===============================================================================
 4. PUBLISHING                                           *lint-actions-publish*
 
-Every fix has a source: a stable string identifying its producer. Sources
+Every action has a source: a stable string identifying its producer. Sources
 supply actions in one of two ways.
 
   - `publish()` stores actions computed ahead of the request, typically from a
