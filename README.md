@@ -219,6 +219,12 @@ require('lint_actions').register({
 fast. A provider that raises is reported and skipped without affecting the
 rest of the request. See `:help lint-actions-providers`.
 
+[`examples/foldmarker.lua`](examples/foldmarker.lua) is a complete working
+provider: it offers a fold marker modeline to a buffer that uses fold markers
+without one, reading the buffer, returning a rangeless whole-buffer item, and
+gating itself with `enabled`. It is an example rather than a bundled
+integration — copy it into your config and call its `setup()`.
+
 ## Health
 
 `:checkhealth lint_actions` reports the Neovim requirement, every attached
