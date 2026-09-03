@@ -1,6 +1,11 @@
 # lint-actions.nvim
 
-Expose structured linter fixes as native Neovim LSP code actions. Actions work with `vim.lsp.buf.code_action()`, fzf-lua, Telescope, and other LSP clients without replacing their UI.
+Show linter fixes in Neovim's native LSP code actions.
+
+Some linters tell you how to fix what they found, but that fix has nowhere to
+go — Neovim's code-action menu only listens to LSP servers. This plugin gives
+those fixes a way in, so they show up in `vim.lsp.buf.code_action()`, fzf-lua,
+Telescope, or whatever picker you already use.
 
 ![A golangci-lint fix exposed as a Neovim code action](media/demo.png)
 
@@ -32,9 +37,9 @@ The core setup has no dependencies:
 require('lint_actions').setup()
 ```
 
-The bundled integrations require
-[nvim-lint](https://github.com/mfussenegger/nvim-lint). After installing and
-configuring nvim-lint, enable the integrations for the linters you use:
+The bundled integrations need
+[nvim-lint](https://github.com/mfussenegger/nvim-lint). Install and configure
+nvim-lint first, then turn on the integrations for the linters you use:
 
 ```lua
 require('lint_actions').setup({
@@ -47,8 +52,7 @@ require('lint_actions').setup({
 })
 ```
 
-Use `true` for the defaults or an options table for an integration-specific
-override:
+Use `true` for the defaults or an options table for an integration-specific override:
 
 ```lua
 require('lint_actions').setup({
@@ -63,45 +67,46 @@ require('lint_actions').setup({
 })
 ```
 
-Setup is additive and idempotent: later calls may enable more integrations,
-and attaching an already attached integration is harmless. `false` leaves an
-integration disabled; it does not detach one enabled by an earlier call.
+You can call `setup()` more than once to turn on more integrations later, and
+enabling an already-enabled integration does nothing. `false` means "leave it
+off" but it will not turn off an integration you enabled earlier.
 
-lint-actions does not run linters itself. Its integrations reuse output from
-your existing nvim-lint runs. The direct integration `attach()` functions
-remain available for lower-level configuration.
+lint-actions never runs a linter. The integrations reuse the output from lint
+runs you already trigger. Each integration also has its own `attach()`
+function if you want finer control.
 
 ## Integrations
 
-Integration-specific dependencies, configuration, and behavior live in
-versioned Vim help guides:
+Each integration has its own help page covering its requirements, options, and quirks:
 
 - [golangci-lint with nvim-lint](doc/lint-actions-golangci.txt)
 - [markdownlint-cli with nvim-lint](doc/lint-actions-markdownlint.txt)
 
-They are also available inside Neovim with `:help lint-actions-golangci` and
+Both are also available in Neovim as `:help lint-actions-golangci` and
 `:help lint-actions-markdownlint`.
 
-The nvim-lint bridge is also an extension point for other tools. It preserves
-diagnostics from any function-based nvim-lint parser while passing the same
-raw output to a fix adapter. If a tool needs a richer output format, configure
-its arguments and matching parser before attaching the bridge. See
-`:help lint-actions-nvim-lint`.
+The nvim-lint bridge works for other tools too. It keeps the diagnostics from
+any function-based nvim-lint parser while handing the same raw output to a fix
+adapter. If your tool needs richer output, set its arguments and a matching
+parser before attaching. See `:help lint-actions-nvim-lint`.
 
-## Publishing actions
+## Sending fixes to the menu
 
-Actions belong to a source: a stable string naming whatever produced them. A
-source supplies its actions one of two ways. It can *push* them with
-`publish()`, which suits fixes that arrive from a tool when it finishes, or it
-can be *pulled* by registering a [provider](#providers), which suits actions
-derived from buffer content.
+Every fix belongs to a **source** — a stable string naming whatever produced
+it. There are two ways to get fixes from a source into the menu:
 
-`setup()` names bundled integrations only and rejects any other key, so a typo
-is reported rather than ignored. A third-party source is not registered there —
-it calls `publish()` or `register()` directly, and both call `setup()`
-themselves, so no ordering is required.
+- **`publish()`** — you hand over the fixes when you have them. Good for fixes
+  that come out of a tool when it finishes running.
+- **`register()`** — you hand over a function, and it gets called when Neovim
+  asks. Good for fixes you can work out from the buffer on the spot. See
+  [Providers](#providers).
 
-Other tools can publish native actions directly:
+You do not list your own source in `setup()`. That option names bundled
+integrations only, and rejects anything else so a typo gets reported instead of
+silently ignored. Just call `publish()` or `register()` — both call `setup()`
+for you, so order does not matter.
+
+### Publishing
 
 ```lua
 local lint_actions = require('lint_actions')
@@ -124,27 +129,34 @@ lint_actions.publish({
 })
 ```
 
-`source` is a replacement key, not provenance shown to the user. Republishing
-a source replaces only its own actions, so several sources coexist without
-coordinating. Neovim never displays it — its code-action UI labels an entry
-with the LSP client name, `lint-actions`, and only when more than one client is
-attached to the buffer.
+`range` says where in the buffer the action shows up. Matching is by line —
+`character` is accepted so the shape stays valid, but it never narrows
+anything. Leave `range` out to offer the action anywhere in the buffer.
 
-A source that wants to name itself does so in `action.title`, as a bracketed
-suffix matching that convention. The bundled golangci-lint adapter titles its
-actions `Apply suggested fix [errcheck]`, which renders as `Apply suggested fix
-[errcheck] [lint-actions]`. Prefer a suffix over a prefix: it stacks with
-Neovim's own label, and it leaves actions sorted by what they do rather than
-clustered under whoever produced them.
+### What `source` is for
 
-An item's `range` says where the action is offered, and matching is
-line-granular — `character` is accepted for protocol shape but never narrows a
-match. Omit `range` to offer the action anywhere in the buffer.
+`source` is a replacement key, nothing more. Publishing again for the same
+source replaces only that source's actions, so several sources can share a
+buffer without coordinating.
 
-`action.edit` accepts one `lsp.TextEdit`, a list of text edits, or an
-`lsp.WorkspaceEdit`. A text edit only describes a range replacement, so
-`publish()` targets it at `bufnr` and wraps it in a versioned workspace edit.
-This is the recommended form for ordinary same-buffer linter fixes:
+Neovim never shows it. The code-action menu labels an entry with the LSP
+client name — `lint-actions` — and only when the buffer has more than one
+client attached.
+
+If you want your tool named in the menu, put it in `action.title` as a
+bracketed suffix. The golangci-lint adapter titles its actions
+`Apply suggested fix [errcheck]`, which reaches the menu as
+`Apply suggested fix [errcheck] [lint-actions]`. A suffix beats a prefix: it
+stacks neatly with Neovim's own label, and actions stay sorted by what they do
+rather than clumped under whoever made them.
+
+### Edits
+
+`action.edit` takes one `lsp.TextEdit`, a list of them, or a full `lsp.WorkspaceEdit`.
+
+A text edit only says "replace this range with this text", so `publish()`
+points it at `bufnr` and wraps it in a versioned workspace edit for you. This
+is the form to use for ordinary same-buffer linter fixes:
 
 ```lua
 action = {
@@ -157,8 +169,7 @@ action = {
 }
 ```
 
-Use a full workspace edit when an action changes several documents or performs
-ordered file operations:
+Reach for a full workspace edit when the fix touches several files or renames things:
 
 ```lua
 action.edit = {
@@ -169,16 +180,18 @@ action.edit = {
 }
 ```
 
-Both inputs are returned to Neovim as `CodeAction`s containing a
-`WorkspaceEdit`, so preview-capable code-action pickers can compute a diff for
-either one. An opaque `command`, rather than the choice between `TextEdit` and
-`WorkspaceEdit`, is what normally prevents an edit preview. Neovim's built-in
-code-action selector applies edits but does not itself render a diff preview.
+Either way Neovim gets a `CodeAction` holding a `WorkspaceEdit`, so pickers
+that show diffs can diff both. What usually blocks a preview is an action that
+carries an opaque `command` instead of an edit — not the choice between
+`TextEdit` and `WorkspaceEdit`. (Neovim's built-in selector applies edits but
+does not draw a diff itself.)
 
-An action may carry an `lsp.Command` instead of, or alongside, an edit, for a
-fix that cannot be expressed as a text edit. lint-actions returns it unchanged
-and Neovim resolves it client-side against `vim.lsp.commands`, so register the
-handler before publishing the action:
+### Fixes that are not edits
+
+If a fix cannot be written as a text edit, an action can carry an
+`lsp.Command` instead of — or alongside — an edit. lint-actions passes it
+through untouched and Neovim runs it client-side from `vim.lsp.commands`, so
+register the handler before you publish:
 
 ```lua
 vim.lsp.commands['my-tool.run'] = function(command, context)
@@ -193,9 +206,9 @@ and undo as a single change.
 
 ## Providers
 
-A provider is the pull half of the two ways above. Rather than deciding when
-its actions change and pushing them, it is asked for them when Neovim requests
-code actions — no autocmds, no debouncing, and nothing to keep fresh:
+A provider is the pull side. Instead of tracking when your fixes change and
+pushing them, you give the plugin a function and it calls it when Neovim asks
+for code actions.
 
 ```lua
 require('lint_actions').register({
@@ -215,25 +228,28 @@ require('lint_actions').register({
 })
 ```
 
-`provide` runs inside the code-action request, so it must be synchronous and
-fast. A provider that raises is reported and skipped without affecting the
-rest of the request. See `:help lint-actions-providers`.
+`provide` runs while Neovim waits for the answer, so it has to be synchronous
+and quick. If it throws, the plugin reports it and skips that provider; the
+rest of the request still works. See `:help lint-actions-providers`.
 
-[`examples/foldmarker.lua`](examples/foldmarker.lua) is a complete working
-provider: it offers a fold marker modeline to a buffer that uses fold markers
-without one, reading the buffer, returning a rangeless whole-buffer item, and
-gating itself with `enabled`. It is an example rather than a bundled
-integration — copy it into your config and call its `setup()`.
+[`examples/foldmarker.lua`](examples/foldmarker.lua) is a small working provider: it offers to add a 
+fold marker modeline to a buffer that uses fold markers but has no modeline.
+It reads the buffer, returns a rangeless whole-buffer item, and uses `enabled`
+to stay out of the way elsewhere. It is an example and not a bundled integration so to use it
+just copy it into your config and call its `setup()`.
 
 ## Health
 
-`:checkhealth lint_actions` reports the Neovim requirement, every attached
-nvim-lint integration, and every registered provider. A misconfigured
-integration is otherwise silent, since lint-actions only sees output that
-nvim-lint produces, so the check warns when an attached linter is in no
-`linters_by_ft` entry, when nvim-lint has no linter under that name, or when
-a linter's command is not executable.
+`:checkhealth lint_actions` shows the Neovim version requirement, every
+attached nvim-lint integration, and every registered provider.
 
-See [the architecture note](ARCHITECTURE.md) for the data flow and stale-edit guarantees.
+A misconfigured integration would otherwise fail silently, since lint-actions
+only ever sees output nvim-lint produces. So the check warns when an attached
+linter is missing from `linters_by_ft`, when nvim-lint has no linter by that
+name, or when a linter's command is not executable.
 
-Development setup and commands are in [CONTRIBUTING.md](CONTRIBUTING.md).
+---
+
+[ARCHITECTURE.md](ARCHITECTURE.md) explains how the pieces fit together and how stale fixes are kept out.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the development setup and commands.

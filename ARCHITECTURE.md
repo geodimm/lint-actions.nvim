@@ -1,25 +1,32 @@
 # Architecture
 
-`lint-actions.nvim` connects fix sources to Neovim's existing LSP code-action UI.
-It makes structured fixes available to tools that already understand LSP code actions.
-It does not run linters or provide a picker for code actions.
+Some linters do more than report a problem — they also tell you how to fix it.
+Neovim already has a good UI for applying fixes: the LSP code-action menu.
+But that menu only talks to LSP servers, and a linter is not an LSP server.
 
-## Supplying actions
+`lint-actions.nvim` fills that gap. It runs a small LSP server inside Neovim
+that serves nothing but code actions. Fixes from linters go in, and they come
+out the other side as ordinary code actions, so `vim.lsp.buf.code_action()`,
+fzf-lua, Telescope, and anything else that speaks LSP can show and apply them.
 
-A source reaches the code-action UI one of two ways, and the difference is
-when its actions are computed.
+The plugin does not run linters and does not draw any UI of its own.
+
+## Getting fixes in
+
+There are two ways to hand fixes to the plugin. They differ in *when* the
+fixes are worked out.
 
 ```mermaid
 flowchart LR
     S["Linter or other source"]
 
-    subgraph pull["Pull — during a request"]
+    subgraph pull["Pull — worked out when Neovim asks"]
         R["register()"] --> PR["Provider registry"]
     end
 
-    subgraph push["Push — ahead of a request"]
+    subgraph push["Push — worked out ahead of time"]
         A["Adapter"] -->|items| P["publish()"]
-        P --> ST[("Versioned action store")]
+        P --> ST[("Action store")]
     end
 
     S -->|raw output| A
@@ -27,84 +34,119 @@ flowchart LR
     S -->|provide callback| R
 ```
 
-## Publishing
+### Push: `publish()`
 
-A source can call `publish()` directly with normalized actions.
-Tool-specific adapters handle formats such as golangci-lint and markdownlint
-JSON, while integrations capture output another plugin already produced.
-The [nvim-lint](https://github.com/mfussenegger/nvim-lint) integration wraps its parser and never launches a second process.
+Use this when the fixes come from a tool that takes time to run. The tool
+finishes, you call `publish()`, and the fixes sit in the store until Neovim
+asks for them.
 
-### Parser interposition
+You can call `publish()` yourself with ready-made actions. Or you can let an
+*adapter* do the conversion: adapters know how to read a specific tool's
+output, such as golangci-lint or markdownlint JSON, and turn it into actions.
 
-nvim-lint owns process execution and diagnostic publication, while each
-linter definition owns output interpretation through its `parser` function.
-The integration calls that parser first, passes both its diagnostics and the
-same raw output to the selected adapter, then returns the diagnostics to
-nvim-lint unchanged.
+The [nvim-lint](https://github.com/mfussenegger/nvim-lint) integration is the
+usual way to feed an adapter. It reuses output nvim-lint already collected, so
+your linter never runs twice.
 
-This also supports richer output formats than a bundled linter definition
-uses by default. The source must switch the command arguments and parser as
-one operation: for example, a `--json` argument must be paired with a JSON
-parser returning `vim.Diagnostic[]`. The adapter can then consume the JSON for
-fix metadata without disrupting nvim-lint's normal diagnostic flow.
+#### How the nvim-lint integration hooks in
 
-That switch is a `configure` hook rather than something each integration does
-for itself, because nvim-lint resolves a linter either as a table or as a
-factory rebuilt on every run. The bridge owns that resolution once and calls
-`configure` on whichever definition it produces, immediately before wrapping
-the parser.
+nvim-lint runs the linter process and publishes the diagnostics. Each linter
+definition has a `parser` function that reads the tool's output. That parser
+is the hook point.
 
-For same-buffer fixes, a source may put one `TextEdit` or a list of text edits in an action's `edit` field.
-Publication wraps that shorthand in a versioned `WorkspaceEdit`, which is the type required by the LSP `CodeAction` protocol.
-A source can instead supply a full `WorkspaceEdit` for multi-document changes or resource operations.
+The integration wraps it. When nvim-lint calls the parser, the integration:
 
-Actions are stored by buffer and source.
-Republishing replaces only that source, so several sources can coexist without coordinating with each other.
-`source` is that replacement key and nothing more: the LSP `CodeAction` type has no provenance field,
-and Neovim labels picker entries with the client name rather than anything a source chooses.
+1. calls the original parser to get the diagnostics,
+2. hands both the diagnostics and the same raw output to the adapter,
+3. returns the diagnostics to nvim-lint untouched.
 
-## Providing
+nvim-lint never notices, and the adapter gets everything it needs.
 
-Publication is a push: the source decides when its actions change and has to
-watch the buffer to know. That fits tools whose output arrives asynchronously,
-and it is the wrong shape for actions that are simply a function of buffer
-content.
+Sometimes an adapter needs richer output than the linter produces by default
+— JSON instead of plain text, for instance. Adding a `--json` argument alone
+would break diagnostics, because the old parser cannot read the new format.
+The argument and the parser have to change together.
 
-A registered provider is pulled instead. The transport asks it for actions
-inside the `textDocument/codeAction` request, so it computes against the
-current buffer and needs no autocmds, debouncing, or staleness handling. The
-cost is that `provide` runs on the request path and must be synchronous; a
-provider that raises is reported and skipped without failing the request.
+That is what the `configure` hook is for. You could set both by hand, but
+nvim-lint lets a linter be either a plain table or a factory that is rebuilt
+on every run — and a factory throws your changes away each time. The
+integration resolves the linter once, calls `configure` on whatever it gets,
+and only then wraps the parser.
 
-Both paths produce the same items and are matched by the same rule.
+### Pull: `register()`
 
-## Serving actions
+Push means the source decides when its fixes change, which means watching the
+buffer for edits, debouncing, and worrying about stale results. That is fine
+for a tool that runs in the background. It is a lot of machinery for a fix
+that is just a function of what is in the buffer right now.
+
+A registered provider skips all of it. When Neovim asks for code actions, the
+plugin calls the provider's `provide` function and uses whatever it returns.
+No autocmds, no debouncing, nothing to keep fresh — it reads the buffer as it
+is at that moment.
+
+The trade-off: `provide` runs while Neovim is waiting for an answer, so it
+must be synchronous and quick. If it throws, the plugin reports the error and
+skips that provider; the rest of the request is unaffected.
+
+Both routes produce the same kind of item, and both are matched the same way.
+
+## What an action can contain
+
+For a fix inside the current buffer, put a `TextEdit` (or a list of them) in
+the action's `edit` field. `publish()` wraps that in a `WorkspaceEdit`, which
+is what the LSP `CodeAction` type actually requires, and stamps it with the
+buffer's document version.
+
+For changes across several files, or file operations like renames, supply a
+full `WorkspaceEdit` yourself.
+
+## How actions are stored
+
+Actions are stored per buffer, per source. Publishing again for a source
+replaces only that source's actions, so several sources can write to the same
+buffer without stepping on each other.
+
+That is all `source` does. It is a replacement key, not a label — the LSP
+`CodeAction` type has no field for "who made this", and Neovim labels menu
+entries with the client name anyway.
+
+## Getting actions out
 
 ```mermaid
 flowchart LR
-    UI["Neovim LSP UI<br/>built-in, fzf-lua, Telescope"] -->|textDocument/codeAction| T["In-process LSP transport"]
-    T -->|buffer, range, kind| ST[("Versioned action store")]
+    UI["Neovim LSP UI<br/>built-in, fzf-lua, Telescope"] -->|textDocument/codeAction| T["In-process LSP server"]
+    T -->|buffer, range, kind| ST[("Action store")]
     T -->|buffer, range, kind| PR["Provider registry"]
-    ST -->|stored CodeActions| T
-    PR -->|CodeActions computed now| T
+    ST -->|stored actions| T
+    PR -->|actions computed now| T
     T -->|merged and sorted| UI
     UI -->|applies WorkspaceEdit| B["Buffer"]
 ```
 
-The first non-empty publication, or a provider that applies to a buffer,
-starts a small in-process LSP client.
-The same client is reused and attached only to buffers that publish actions or that a provider serves.
-When Neovim requests `textDocument/codeAction`, the transport asks the store and the registered providers
-for actions matching the buffer, requested range, and optional action-kind filter.
-Ranges are matched by line; an item without a range covers the whole buffer.
+The LSP server starts on demand — the first time a source publishes something,
+or a provider is registered that applies to a buffer. One server is shared,
+and it attaches only to buffers that actually have actions.
 
-The response contains ordinary `CodeAction` objects.
-Neovim and third-party pickers therefore handle selection, preview, and application through their normal LSP paths.
+When a `textDocument/codeAction` request arrives, the server asks the store
+and every registered provider for actions matching the buffer, the requested
+range, and the action-kind filter if the client sent one. Ranges are matched
+by line; an item with no range applies to the whole buffer.
 
-## Stale-edit protection
+The reply is a list of plain `CodeAction` objects. From there Neovim and any
+third-party picker handle selection, preview, and application through their
+normal LSP paths — the plugin is out of the loop.
 
-Each publication records both the buffer changed tick and its current LSP document version.
-A batch is discarded when either value no longer matches.
+## Not applying stale fixes
 
-Edits for the current buffer are returned as versioned `documentChanges`.
-This second check matters when the buffer changes after the action picker opens: Neovim rejects the selected edit instead of applying old offsets to new content.
+A fix computed for one version of a file is wrong for the next. Two checks
+guard against that.
+
+**At publish time.** Each batch records the buffer's `changedtick` and its LSP
+document version. If either has moved on by the time the batch is stored, the
+batch is dropped.
+
+**At apply time.** Edits for the current buffer go out as versioned
+`documentChanges`. This covers the gap between opening the menu and picking an
+entry: if the buffer changed in between, Neovim refuses the edit rather than
+applying old offsets to new text.
