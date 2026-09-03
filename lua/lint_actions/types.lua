@@ -1,5 +1,13 @@
 ---@alias LintActions.Edit lsp.TextEdit|lsp.TextEdit[]|lsp.WorkspaceEdit
 
+---@class LintActions.Position
+---@field line integer Zero-based line.
+---@field character? integer Accepted for protocol shape; matching is line-granular.
+
+---@class LintActions.Range
+---@field start LintActions.Position
+---@field end LintActions.Position
+
 ---@class LintActions.NvimLintIntegrationOptions
 ---@field golangci? boolean|LintActions.GolangciOptions Enable with defaults using `true`, or pass integration options.
 ---@field markdownlint? boolean|LintActions.MarkdownlintOptions Enable with defaults using `true`, or pass integration options.
@@ -14,12 +22,27 @@
 ---@field edit? LintActions.Edit A TextEdit or list targets the published buffer; a WorkspaceEdit may target multiple resources.
 
 ---@class LintActions.Item
----@field range lsp.Range Range in which the action is offered.
+---@field range? LintActions.Range Lines on which the action is offered. Omit for the whole buffer.
 ---@field action LintActions.CodeAction Action returned to the LSP client.
+
+---@class LintActions.NormalizedItem
+---@field range lsp.Range Range filled in by `normalize()`.
+---@field action lsp.CodeAction Action with its edit already versioned.
+
+---@class LintActions.ProviderContext
+---@field bufnr integer Buffer the request is for.
+---@field range lsp.Range Range Neovim asked about.
+---@field only? lsp.CodeActionKind[] Requested kinds, when the client filtered.
+
+---@class LintActions.Provider
+---@field source string Stable identifier for whatever produced the actions. Replacement key, not shown in the picker.
+---@field provide fun(context: LintActions.ProviderContext): LintActions.Item[]? Called synchronously per request.
+---@field filetypes? string[] Restrict the provider to these filetypes.
+---@field enabled? fun(bufnr: integer): boolean Further restrict the provider per buffer.
 
 ---@class LintActions.PublishOptions
 ---@field bufnr integer
----@field source string Stable identifier for the action producer.
+---@field source string Stable identifier for whatever produced the actions. Replacement key, not shown in the picker.
 ---@field items LintActions.Item[]
 
 ---@class LintActions.ClearOptions
@@ -46,6 +69,6 @@
 ---@field source string
 ---@field changedtick integer
 ---@field version integer
----@field items LintActions.Item[]
+---@field items LintActions.NormalizedItem[]
 
 return {}

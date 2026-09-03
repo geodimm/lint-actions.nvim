@@ -1,4 +1,5 @@
 local adapter = require('lint_actions.adapters.golangci')
+local items = require('lint_actions.items')
 local nvim_lint = require('lint_actions.integrations.nvim_lint')
 
 local M = {}
@@ -14,7 +15,7 @@ function M.attach(options)
   if options == nil then
     options = {}
   end
-  vim.validate('options', options, 'table')
+  items.expect(options, 'table', 'options')
 
   local linter = options.linter
   if linter == nil then

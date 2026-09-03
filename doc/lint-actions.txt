@@ -5,14 +5,15 @@ CONTENTS                                                     *lint-actions-conte
 
 1. Introduction                                      |lint-actions-introduction|
 2. Setup                                                    |lint-actions-setup|
-3. Publishing                                              |lint-actions-publish|
-4. Integrations                                        |lint-actions-integrations|
-5. Health                                                    |lint-actions-health|
+3. Integrations                                        |lint-actions-integrations|
+4. Publishing                                              |lint-actions-publish|
+5. Providers                                             |lint-actions-providers|
+6. Health                                                    |lint-actions-health|
 
 ===============================================================================
 1. INTRODUCTION                                         *lint-actions-introduction*
 
-lint-actions.nvim exposes fixes from linters and other producers as ordinary
+lint-actions.nvim exposes fixes from linters and other sources as ordinary
 LSP code actions. It does not run tools or replace |vim.lsp.buf.code_action()|.
 
 Neovim 0.11 or newer is required.
@@ -48,43 +49,7 @@ Neovim 0.11 or newer is required.
     |lint-actions-integrations| for their requirements and options.
 
 ===============================================================================
-3. PUBLISHING                                                   *lint-actions-publish*
-
-                                                             *lint_actions.publish()*
-`publish({opts})`
-    Replaces the actions for one buffer and source. An empty `items` list
-    clears that source.
-
-    Fields: ~
-      bufnr   Buffer receiving the actions.
-      source  Stable producer identifier.
-      items   List of `{ range = lsp.Range, action = action }`. Each action is
-              an `lsp.CodeAction`, except its `edit` may also be one
-              `lsp.TextEdit` or a list of text edits targeting `bufnr`.
-
-    Same-buffer fixes should normally use the TextEdit shorthand: >lua
-
-      action = {
-        title = 'Apply suggested fix',
-        kind = 'quickfix',
-        edit = { range = edit_range, newText = replacement },
-      }
-<
-    `publish()` wraps text edits in a versioned `lsp.WorkspaceEdit`. Supply a
-    full WorkspaceEdit for multi-document edits or file operations. Both forms
-    remain declarative and can be diffed by preview-capable code-action UIs;
-    command-only actions generally cannot be previewed.
-
-                                                               *lint_actions.clear()*
-`clear({opts})`
-    Clears one source for a buffer. Omit `source` to clear all sources.
-
-                                                              *lint_actions.ingest()*
-`ingest({opts})`
-    Parses tool output with `opts.adapter` and publishes the returned items.
-
-===============================================================================
-4. INTEGRATIONS             *lint-actions-integrations* *lint-actions-adapters*
+3. INTEGRATIONS             *lint-actions-integrations* *lint-actions-adapters*
 
 Bundled integrations reuse output from nvim-lint and do not launch a second
 linter process. Supported tools and their setup guides are: ~
@@ -114,12 +79,14 @@ users can connect it to a compatible adapter: >lua
     linter = 'linter-name',
     adapter = require('my_adapter'),
     source = 'optional-source-override',
+    configure = optional_function,
   })
 <
 `linter` accepts a registered nvim-lint name or a concrete linter definition.
 The adapter must expose `source` and `parse(context)`. The integration wraps
 the existing parser, preserves its diagnostics, and passes the same process
-output to the adapter. It does not change the linter command or arguments.
+output to the adapter. On its own it does not change the linter command or
+arguments; `configure` is how an integration changes them.
 
 CHANGING THE OUTPUT FORMAT ~
 
@@ -146,6 +113,27 @@ The replacement parser must accept `(output, bufnr, cwd)` and return
 Changing only the output argument would leave the old parser reading the
 wrong format and break diagnostics. Changing the argument and parser together
 keeps nvim-lint diagnostics working while exposing richer data to the adapter.
+
+Doing it by hand only works for a concrete linter definition. A linter
+registered as a factory is rebuilt on every run, so its arguments have to be
+set each time one is produced. Pass `configure` instead and the integration
+applies it wherever the linter is resolved from: >lua
+
+  require('lint_actions.integrations.nvim_lint').attach({
+    linter = 'my_linter',
+    adapter = adapter,
+    configure = function(linter)
+      linter.args = linter.args or {}
+      table.insert(linter.args, '--json')
+      linter.parser = adapter.diagnostics
+    end,
+  })
+<
+`configure` receives the resolved linter before its parser is wrapped, and
+runs once per linter. Because it must run before the wrap, attaching a linter
+through a plain `attach()` first and adding a `configure` afterwards raises an
+error rather than silently leaving the arguments unchanged.
+
 The markdownlint integration, |lint-actions-markdownlint|, is a complete
 example of this pattern.
 
@@ -154,7 +142,151 @@ Producers that already have normalized actions can bypass nvim-lint and use
 with |lint_actions.ingest()|.
 
 ===============================================================================
-5. HEALTH                                                         *lint-actions-health*
+4. PUBLISHING                                                   *lint-actions-publish*
+
+Actions belong to a source: a stable string naming whatever produced them. A
+source supplies its actions one of two ways. It can push them with `publish()`,
+which suits fixes that arrive from a tool when it finishes, or it can be pulled
+by registering a provider, which suits actions derived from buffer content and
+is described in |lint-actions-providers|.
+
+`source` is a replacement key, not provenance shown to the user. Republishing
+a source replaces only its own actions, so several sources coexist without
+coordinating. Neovim never displays it: its code-action UI labels an entry with
+the LSP client name, `lint-actions`, and only when more than one client is
+attached to the buffer.
+
+A source that wants to name itself does so in `action.title`, as a bracketed
+suffix matching that convention. The bundled golangci-lint adapter titles its
+actions `Apply suggested fix [errcheck]`, which reaches the picker as
+`Apply suggested fix [errcheck] [lint-actions]`. Prefer a suffix over a
+prefix: it stacks with Neovim's own label, and it leaves actions sorted by
+what they do rather than clustered under whoever produced them.
+
+                                                             *lint_actions.publish()*
+`publish({opts})`
+    Replaces the actions for one buffer and source. An empty `items` list
+    clears that source.
+
+    Fields: ~
+      bufnr   Buffer receiving the actions.
+      source  Stable identifier for whatever produced the actions.
+      items   List of `{ range = range, action = action }`. Each action is
+              an `lsp.CodeAction`, except its `edit` may also be one
+              `lsp.TextEdit` or a list of text edits targeting `bufnr`.
+
+    An item's `range` says where the action is offered. Matching is
+    line-granular: `character` is accepted for protocol shape but never
+    narrows a match. Omit `range` entirely to offer the action anywhere in
+    the buffer.
+
+    Same-buffer fixes should normally use the TextEdit shorthand: >lua
+
+      action = {
+        title = 'Apply suggested fix',
+        kind = 'quickfix',
+        edit = { range = edit_range, newText = replacement },
+      }
+<
+    `publish()` wraps text edits in a versioned `lsp.WorkspaceEdit`. Supply a
+    full WorkspaceEdit for multi-document edits or file operations. Both forms
+    remain declarative and can be diffed by preview-capable code-action UIs;
+    command-only actions generally cannot be previewed.
+
+ACTIONS THAT ARE NOT EDITS ~
+
+    An action may carry an `lsp.Command` instead of, or alongside, an edit,
+    for a fix that cannot be expressed as a text edit. lint-actions returns it
+    unchanged and Neovim resolves it client-side, so register the handler
+    before publishing the action: >lua
+
+      vim.lsp.commands['my-tool.run'] = function(command, context)
+        run(command.arguments[1], context.bufnr)
+      end
+<
+    Neovim looks the name up in `vim.lsp.commands` (and in the client's own
+    command table) before asking the server. lint-actions advertises no
+    `executeCommandProvider`, so an unregistered name is not executed and
+    warns that the server does not support the command. Prefer an edit
+    wherever the fix can be expressed as one: edits are previewable, are
+    version-checked against the buffer, and undo as a single change.
+
+                                                               *lint_actions.clear()*
+`clear({opts})`
+    Clears one source for a buffer. Omit `source` to clear all sources.
+
+                                                              *lint_actions.ingest()*
+`ingest({opts})`
+    Parses tool output with `opts.adapter` and publishes the returned items.
+
+===============================================================================
+5. PROVIDERS                                                  *lint-actions-providers*
+
+`setup()` names bundled integrations only, and rejects any other key so a
+typo is reported rather than silently ignored. A third-party source does not
+register itself there: it calls |lint_actions.publish()| or
+|lint_actions.register()| directly. Both call `setup()` themselves, so no
+ordering between them is required.
+
+A provider is the pull half of |lint-actions-publish|. Rather than deciding
+when its actions change and pushing them, it is asked for them when Neovim
+requests code actions. It needs no autocmds, no debouncing, and no staleness
+handling, because it computes against the current buffer.
+
+                                                            *lint_actions.register()*
+`register({provider})`
+    Registers a provider. Registering the same `source` again replaces the
+    earlier provider.
+
+    Fields: ~
+      source     Stable identifier for whatever produced the actions.
+      provide    `fun(context): items`. Called synchronously for each request.
+                 May return `nil` for no actions. `context` carries `bufnr`,
+                 the requested `range`, and `only` when the client filtered by
+                 kind. Returned items are matched against the request the same
+                 way published items are.
+      filetypes  Optional list restricting the provider to those filetypes.
+      enabled    Optional `fun(bufnr): boolean` restricting it further.
+
+    Example: >lua
+
+      require('lint_actions').register({
+        source = 'my-tool',
+        filetypes = { 'lua' },
+        provide = function(context)
+          if not needs_fix(context.bufnr) then
+            return {}
+          end
+          return {
+            {
+              action = {
+                title = 'Apply my fix',
+                kind = 'quickfix',
+                edit = { range = edit_range, newText = replacement },
+              },
+            },
+          }
+        end,
+      })
+<
+    Providers run inside the `textDocument/codeAction` request, so `provide`
+    must be synchronous and fast; a slow provider delays the action picker.
+    Producers whose fixes come from a process should publish instead.
+
+    A provider that raises is reported with |vim.notify()| and skipped. Other
+    providers and published actions still answer the same request.
+
+    Registering a provider attaches the in-process client to ordinary file
+    buffers (`buftype` is empty) that the provider applies to, including
+    buffers already open. Declaring `filetypes` keeps that attachment narrow.
+
+                                                          *lint_actions.unregister()*
+`unregister({source})`
+    Removes a provider. Buffers stay attached and simply stop receiving
+    actions from that source.
+
+===============================================================================
+6. HEALTH                                                         *lint-actions-health*
 
 Run `:checkhealth lint_actions` to check the Neovim requirement.
 

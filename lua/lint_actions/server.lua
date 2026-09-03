@@ -1,3 +1,5 @@
+local items = require('lint_actions.items')
+local providers = require('lint_actions.providers')
 local store = require('lint_actions.store')
 
 local M = {}
@@ -35,7 +37,12 @@ local function cmd(dispatchers)
     elseif method == 'textDocument/codeAction' then
       local bufnr = vim.uri_to_bufnr(params.textDocument.uri)
       local only = params.context and params.context.only or nil
-      local actions = vim.api.nvim_buf_is_valid(bufnr) and store.actions(bufnr, params.range, only) or {}
+      local actions = {}
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        actions = store.actions(bufnr, params.range, only)
+        vim.list_extend(actions, providers.actions(bufnr, params.range, only))
+        items.sort(actions)
+      end
       callback(nil, actions)
     elseif method == 'shutdown' then
       callback(nil, nil)
