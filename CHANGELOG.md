@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.5.0...v0.6.0) (2026-09-03)
+
+
+### Features
+
+* add example provider ([#17](https://github.com/geodimm/lint-actions.nvim/issues/17)) ([6cd961d](https://github.com/geodimm/lint-actions.nvim/commit/6cd961d0177f0e9dd72f38eac8fdb7d091bff8fc))
+
 ## [0.5.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.4.0...v0.5.0) (2026-09-03)
 
 
