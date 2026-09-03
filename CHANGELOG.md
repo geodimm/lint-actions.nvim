@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.7.0...v0.8.0) (2026-09-03)
+
+
+### Features
+
+* add a generic SARIF adapter ([#22](https://github.com/geodimm/lint-actions.nvim/issues/22)) ([fcba39c](https://github.com/geodimm/lint-actions.nvim/commit/fcba39c7a043351728b6b22008be2ff484e1c041))
+
 ## [0.7.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.6.0...v0.7.0) (2026-09-03)
 
 
