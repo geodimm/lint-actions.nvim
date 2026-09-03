@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.2.0...v0.3.0) (2026-09-03)
+
+
+### Features
+
+* add markdownlint code actions ([#9](https://github.com/geodimm/lint-actions.nvim/issues/9)) ([2753f40](https://github.com/geodimm/lint-actions.nvim/commit/2753f401ceaee249d7abed40d9c17699fb332185))
+
 ## [0.2.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.1.0...v0.2.0) (2026-09-03)
 
 
