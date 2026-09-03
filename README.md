@@ -2,10 +2,9 @@
 
 Show linter fixes in Neovim's native LSP code actions.
 
-Some linters tell you how to fix what they found, but that fix has nowhere to
-go — Neovim's code-action menu only listens to LSP servers. This plugin gives
-those fixes a way in, so they show up in `vim.lsp.buf.code_action()`, fzf-lua,
-Telescope, or whatever picker you already use.
+Neovim's code-action UI only queries LSP clients. lint-actions.nvim exposes
+structured fixes from linters through an in-process LSP server, so they appear
+in `vim.lsp.buf.code_action()`, fzf-lua, Telescope, and other LSP-aware pickers.
 
 ![A golangci-lint fix exposed as a Neovim code action](media/demo.png)
 
@@ -39,7 +38,7 @@ require('lint_actions').setup()
 
 The bundled integrations need
 [nvim-lint](https://github.com/mfussenegger/nvim-lint). Install and configure
-nvim-lint first, then turn on the integrations for the linters you use:
+nvim-lint first, then enable the integrations for the linters you use:
 
 ```lua
 require('lint_actions').setup({
@@ -68,9 +67,9 @@ require('lint_actions').setup({
 })
 ```
 
-You can call `setup()` more than once to turn on more integrations later, and
-enabling an already-enabled integration does nothing. `false` means "leave it
-off" but it will not turn off an integration you enabled earlier.
+You can call `setup()` more than once to enable additional integrations.
+Enabling an active integration has no effect. `false` skips an integration but
+does not disable one enabled by an earlier call.
 
 lint-actions never runs a linter. The integrations reuse the output from lint
 runs you already trigger. Each integration also has its own `attach()`
@@ -89,10 +88,10 @@ They are also available in Neovim as `:help lint-actions-golangci`,
 `:help lint-actions-markdownlint`, `:help lint-actions-shellcheck`, and
 `:help lint-actions-sarif`.
 
-The nvim-lint bridge works for other tools too. It keeps the diagnostics from
-any function-based nvim-lint parser while handing the same raw output to a fix
-adapter. If your tool needs richer output, set its arguments and a matching
-parser before attaching. See `:help lint-actions-nvim-lint`.
+The nvim-lint bridge also supports custom adapters. It preserves the
+diagnostics from any function-based parser and passes the same raw output to
+the adapter. If the adapter requires another output format, update the linter's
+arguments and diagnostic parser together. See `:help lint-actions-nvim-lint`.
 
 Tools that emit SARIF 2.1.0 fixes can share the bundled adapter instead of
 needing a tool-specific one:
@@ -112,19 +111,17 @@ See `:help lint-actions-sarif` for setup details and safety constraints.
 
 ## Sending fixes to the menu
 
-Every fix belongs to a **source** — a stable string naming whatever produced
-it. There are two ways to get fixes from a source into the menu:
+Every fix has a `source`, a stable string identifying its producer. Sources
+supply actions in one of two ways:
 
-- **`publish()`** — you hand over the fixes when you have them. Good for fixes
-  that come out of a tool when it finishes running.
-- **`register()`** — you hand over a function, and it gets called when Neovim
-  asks. Good for fixes you can work out from the buffer on the spot. See
-  [Providers](#providers).
+- `publish()` stores actions computed ahead of the request, typically from a
+  completed tool run.
+- `register()` installs a synchronous provider that computes actions when
+  Neovim requests them. See [Providers](#providers).
 
-You do not list your own source in `setup()`. That option names bundled
-integrations only, and rejects anything else so a typo gets reported instead of
-silently ignored. Just call `publish()` or `register()` — both call `setup()`
-for you, so order does not matter.
+Custom sources do not belong in `setup()`. That option accepts bundled
+integrations only and rejects unknown names. Call `publish()` or `register()`
+directly; both initialize the plugin if necessary.
 
 ### Publishing
 
@@ -149,26 +146,25 @@ lint_actions.publish({
 })
 ```
 
-`range` says where in the buffer the action shows up. Matching is by line —
-`character` is accepted so the shape stays valid, but it never narrows
-anything. Leave `range` out to offer the action anywhere in the buffer.
+`range` controls where the action is offered. Matching is by line;
+`character` is accepted as part of the LSP range but does not narrow the
+match. Omit `range` to offer the action throughout the buffer.
 
-### What `source` is for
+### Source identity
 
-`source` is a replacement key, nothing more. Publishing again for the same
-source replaces only that source's actions, so several sources can share a
-buffer without coordinating.
+`source` is the replacement key for a published batch. Publishing again for
+the same source replaces only that source's actions, so several sources can
+share a buffer without coordinating.
 
-Neovim never shows it. The code-action menu labels an entry with the LSP
-client name — `lint-actions` — and only when the buffer has more than one
-client attached.
+Neovim does not display `source`. When a buffer has multiple LSP clients, the
+code-action menu labels each entry with its client name, `lint-actions` in this
+case.
 
 If you want your tool named in the menu, put it in `action.title` as a
 bracketed suffix. The golangci-lint adapter titles its actions
 `Apply suggested fix [errcheck]`, which reaches the menu as
-`Apply suggested fix [errcheck] [lint-actions]`. A suffix beats a prefix: it
-stacks neatly with Neovim's own label, and actions stay sorted by what they do
-rather than clumped under whoever made them.
+`Apply suggested fix [errcheck] [lint-actions]`. A suffix composes with
+Neovim's client label and keeps actions sorted by operation rather than source.
 
 ### Edits
 
@@ -189,7 +185,7 @@ action = {
 }
 ```
 
-Reach for a full workspace edit when the fix touches several files or renames things:
+Use a full workspace edit when the fix touches several files or renames things:
 
 ```lua
 action.edit = {
@@ -200,18 +196,17 @@ action.edit = {
 }
 ```
 
-Either way Neovim gets a `CodeAction` holding a `WorkspaceEdit`, so pickers
-that show diffs can diff both. What usually blocks a preview is an action that
-carries an opaque `command` instead of an edit — not the choice between
-`TextEdit` and `WorkspaceEdit`. (Neovim's built-in selector applies edits but
-does not draw a diff itself.)
+Both forms reach Neovim as a `CodeAction` containing a `WorkspaceEdit`, so a
+preview-capable picker can diff either one. Actions that contain only an opaque
+`command` usually cannot be previewed. Neovim's built-in selector applies
+edits but does not display a diff.
 
 ### Fixes that are not edits
 
-If a fix cannot be written as a text edit, an action can carry an
-`lsp.Command` instead of — or alongside — an edit. lint-actions passes it
-through untouched and Neovim runs it client-side from `vim.lsp.commands`, so
-register the handler before you publish:
+If a fix cannot be written as a text edit, an action can contain an
+`lsp.Command` instead of or alongside an edit. lint-actions passes the command
+through unchanged. Register its client-side handler in `vim.lsp.commands`
+before publishing it:
 
 ```lua
 vim.lsp.commands['my-tool.run'] = function(command, context)
@@ -219,16 +214,15 @@ vim.lsp.commands['my-tool.run'] = function(command, context)
 end
 ```
 
-lint-actions advertises no `executeCommandProvider`, so an unregistered name is
-not executed and warns instead. Prefer an edit wherever the fix can be
-expressed as one: edits are previewable, version-checked against the buffer,
-and undo as a single change.
+lint-actions advertises no `executeCommandProvider`, so Neovim does not execute
+an unregistered command and warns instead. Prefer an edit wherever the fix can
+be expressed as one: edits are previewable, version-checked against the
+buffer, and undo as a single change.
 
 ## Providers
 
-A provider is the pull side. Instead of tracking when your fixes change and
-pushing them, you give the plugin a function and it calls it when Neovim asks
-for code actions.
+A provider computes actions when Neovim requests them. This avoids storing and
+invalidating fixes derived directly from the current buffer.
 
 ```lua
 require('lint_actions').register({
@@ -248,25 +242,25 @@ require('lint_actions').register({
 })
 ```
 
-`provide` runs while Neovim waits for the answer, so it has to be synchronous
-and quick. If it throws, the plugin reports it and skips that provider; the
-rest of the request still works. See `:help lint-actions-providers`.
+`provide` runs synchronously in the code-action request path and must return
+quickly. If it raises an error, the plugin reports it and skips that provider;
+the rest of the request still completes. See `:help lint-actions-providers`.
 
-[`examples/foldmarker.lua`](examples/foldmarker.lua) is a small working provider: it offers to add a 
+[`examples/foldmarker.lua`](examples/foldmarker.lua) is a small working provider. It offers to add a
 fold marker modeline to a buffer that uses fold markers but has no modeline.
 It reads the buffer, returns a rangeless whole-buffer item, and uses `enabled`
-to stay out of the way elsewhere. It is an example and not a bundled integration so to use it
-just copy it into your config and call its `setup()`.
+to limit the provider to relevant buffers. To use it, copy it into your config
+and call its `setup()`; it is not a bundled integration.
 
 ## Health
 
 `:checkhealth lint_actions` shows the Neovim version requirement, every
 attached nvim-lint integration, and every registered provider.
 
-A misconfigured integration would otherwise fail silently, since lint-actions
-only ever sees output nvim-lint produces. So the check warns when an attached
-linter is missing from `linters_by_ft`, when nvim-lint has no linter by that
-name, or when a linter's command is not executable.
+lint-actions only receives output from linter runs, so some integration problems
+would otherwise be silent. The check warns when an attached linter is missing
+from `linters_by_ft`, when nvim-lint has no linter by that name, or when a
+linter's command is not executable.
 
 ---
 

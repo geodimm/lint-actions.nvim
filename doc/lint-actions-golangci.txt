@@ -16,7 +16,7 @@ REQUIREMENTS ~
 
 CONFIGURATION ~
 
-Configure nvim-lint first, then turn the integration on and trigger the linter
+Configure nvim-lint first, then enable the integration and trigger the linter
 as you normally would: >lua
 
   local lint = require('lint')
@@ -33,7 +33,7 @@ as you normally would: >lua
 Trigger nvim-lint from a command, a mapping, or an autocmd.
 
 Actions are only kept when the buffer is unmodified. golangci-lint reads the
-file from disk, so its fixes describe the saved file — applying them to a
+file from disk, so its fixes describe the saved file. Applying them to a
 buffer you have since edited would put the text in the wrong place.
 
 ADVANCED CONFIGURATION ~
@@ -53,8 +53,8 @@ under: >lua
     },
   })
 <
-`require('lint_actions.integrations.golangci').attach()` takes the same
-options if you would rather call it directly.
+`require('lint_actions.integrations.golangci').attach()` accepts the same
+options for direct use.
 
 To write an adapter for a different tool, see |lint-actions-nvim-lint|.
 
