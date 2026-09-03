@@ -1,5 +1,7 @@
 # lint-actions.nvim
 
+[![CI](https://github.com/geodimm/lint-actions.nvim/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/geodimm/lint-actions.nvim/actions/workflows/ci.yaml)
+
 Show linter fixes and custom actions in Neovim's native LSP code-action UI.
 
 Neovim's code-action UI only queries LSP clients. lint-actions.nvim exposes
