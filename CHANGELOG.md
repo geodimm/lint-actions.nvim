@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.6.0...v0.7.0) (2026-09-03)
+
+
+### Features
+
+* add a shellcheck nvim-lint integration ([#20](https://github.com/geodimm/lint-actions.nvim/issues/20)) ([1ac537d](https://github.com/geodimm/lint-actions.nvim/commit/1ac537d8ec54f1dafe7012d1409ee18a1d0e62d5))
+
 ## [0.6.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.5.0...v0.6.0) (2026-09-03)
 
 
