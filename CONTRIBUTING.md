@@ -24,12 +24,12 @@ name such as `to_position()` or `attach()`. Shared setup belongs in `tests/helpe
 Each bundled integration has a directory under `tests/fixtures/<tool>/` holding a small source file
 (`playground.<ext>`) and the tool's real output for it (`output.json`). A fixture test loads the source file into a
 buffer, runs the captured output through the adapter, and applies the resulting edits. Positions in tool output are
-byte offsets or line and column pairs into a specific file, so this is the only way to prove an adapter places its
-edits where the tool meant them. Hand-written output in a test file cannot; use inline output for parsing edge cases
-and malformed input, and a fixture for "does this actually work against the real thing".
+byte offsets or line and column pairs into a specific file. A fixture verifies that the adapter places edits correctly
+in the exact input processed by the tool. Inline output is sufficient for parsing edge cases and malformed input;
+position tests should use real fixture output.
 
-Where the adapter offers a whole-file action, the directory also holds `fixed.<ext>`: the same source after the tool
-fixed it itself. Asserting against that file pins the adapter to the tool's own ordering and overlap rules.
+Where the adapter offers a whole-file action, `fixed.<ext>` contains the source after the tool applies its own fixes.
+Asserting against that file pins the adapter to the tool's ordering and overlap rules.
 
 Regenerate a fixture by running the tool inside its directory, so the paths it reports stay relative:
 
@@ -46,14 +46,15 @@ cd tests/fixtures/golangci
 golangci-lint run --output.json.path stdout | head -n 1
 ```
 
-All three linters exit non-zero when they find something, which is the point here. markdownlint writes its JSON to
-stderr, and shellcheck writes its own on one line, hence the reformatting. Those two commands reproduce the committed
-files byte for byte.
+All three linters exit non-zero when they report findings; this is expected during fixture generation. markdownlint
+writes its JSON to stderr, while shellcheck emits JSON on one line. The commands above reformat that output and
+reproduce the committed files byte for byte.
 
-golangci-lint needs more handling. It prints a summary line after the JSON, and each issue carries fields the adapter
-never reads, so the committed `output.json` keeps only `Issues` and, within each issue, `FromLinter`, `Text`, `Pos`,
-and `SuggestedFixes`, laid out by hand for readability. `tests/fixtures/golangci/.golangci.yml` pins which linters
-run, so the findings do not depend on a personal config found further up the tree.
+The golangci-lint fixture requires manual cleanup. The command prints a summary line after the JSON, and each issue
+contains fields the adapter never reads. The committed `output.json` therefore keeps only `Issues` and, within each
+issue, `FromLinter`, `Text`, `Pos`, and `SuggestedFixes`, laid out by hand for readability.
+`tests/fixtures/golangci/.golangci.yml` pins the enabled linters so the findings do not depend on a personal config
+found further up the tree.
 
 Fixtures are exempted from `.editorconfig` normalisation. Do not let an editor add a final newline, trim trailing
 whitespace, or reformat these files: `playground.md` deliberately ends without a newline and carries trailing spaces,

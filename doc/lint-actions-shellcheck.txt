@@ -76,19 +76,17 @@ There is also one whole-file action, with the kind
   Fix all shellcheck issues
 <
 That whole-file edit produces the same text as `shellcheck --format=diff`: it
-follows shellcheck's own precedence ordering, and drops any fix that collides
-with one already taken. Findings with no fix still appear as diagnostics but
+follows shellcheck's precedence ordering and drops fixes that overlap an
+earlier fix. Findings with no fix still appear as diagnostics but
 have no action.
 
-A single fix is often several replacements at once, such as the opening and
-closing quote SC2086 wants to add. They are applied together as one action,
-and a fix is skipped entirely if any part of it cannot be placed in the
-buffer, avoiding a partial correction.
+A single fix can contain several replacements, such as the opening and closing
+quotes required by SC2086. They are applied together as one action. If any
+replacement cannot be placed in the buffer, the entire fix is skipped.
 
 SOURCED FILES ~
 
-shellcheck follows `source` directives, so one run can report on files besides
-the one nvim-lint asked about. Only findings for the linted buffer become
-actions; the rest are ignored.
+shellcheck follows `source` directives and may report findings in other files.
+Only findings for the linted buffer become actions; the rest are ignored.
 
 vim:tw=78:ts=8:noet:ft=help:norl:
