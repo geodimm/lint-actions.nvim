@@ -1,6 +1,7 @@
 # Compiled Lua sources
 luac.out
 .tmp/
+deps/
 nvim.log
 !.luarc.json
 
