@@ -269,6 +269,12 @@ handling, because it computes against the current buffer.
         end,
       })
 <
+    `examples/foldmarker.lua` in the repository is a complete working
+    provider, offering a fold marker modeline to a buffer that uses fold
+    markers without one. It reads the buffer, returns a rangeless
+    whole-buffer item, and gates itself with `enabled`. It is an example
+    rather than a bundled integration: copy it into a configuration and call
+    its `setup()`.
     Providers run inside the `textDocument/codeAction` request, so `provide`
     must be synchronous and fast; a slow provider delays the action picker.
     Producers whose fixes come from a process should publish instead.

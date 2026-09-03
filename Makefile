@@ -5,13 +5,13 @@ MINITEST_DIR := deps/mini.test
 check: format-check lint typecheck test
 
 format:
-	stylua lua tests
+	stylua examples lua tests
 
 format-check:
-	stylua --check lua tests
+	stylua --check examples lua tests
 
 lint:
-	luacheck lua tests
+	luacheck examples lua tests
 
 typecheck:
 	VIMRUNTIME="$$(NVIM_LOG_FILE=/tmp/lint-actions-typecheck-nvim.log nvim --clean --headless --cmd 'lua io.write(vim.env.VIMRUNTIME)' --cmd 'quitall')" \
