@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.3.0...v0.4.0) (2026-09-03)
+
+
+### Features
+
+* configure integrations through setup ([#12](https://github.com/geodimm/lint-actions.nvim/issues/12)) ([71c0b64](https://github.com/geodimm/lint-actions.nvim/commit/71c0b6420581880dc7e8f7fb80b72719526c35a0))
+
 ## [0.3.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.2.0...v0.3.0) (2026-09-03)
 
 
