@@ -26,12 +26,24 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ## Setup
 
+The core setup has no dependencies:
+
 ```lua
 require('lint_actions').setup()
 ```
 
-Setup is idempotent and only installs buffer cleanup. Nothing runs until an
-integration or another producer publishes actions.
+The bundled integrations require
+[nvim-lint](https://github.com/mfussenegger/nvim-lint). After installing and
+configuring nvim-lint, attach the integrations for the linters you use:
+
+```lua
+require('lint_actions.integrations.golangci').attach()
+require('lint_actions.integrations.markdownlint').attach()
+```
+
+Setup and integration attachment are idempotent. lint-actions does not run
+linters itself; the integrations reuse output from your existing nvim-lint
+runs.
 
 ## Integrations
 
