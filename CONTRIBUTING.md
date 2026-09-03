@@ -12,7 +12,14 @@ eval "$(luarocks --lua-version=5.1 --lua-dir="$LUAJIT_PREFIX" --local path)"
 Run the complete check with `make check`.
 Individual targets are `make format`, `make format-check`, `make lint`, `make typecheck`, and `make test`.
 
-Tests run directly inside headless Neovim and have no Lua test-framework dependency.
+Tests use [`mini.test`](https://github.com/nvim-mini/mini.test), which is downloaded into the ignored `deps/`
+directory by the first `make test`. It is a development-only dependency and is not loaded by the plugin at runtime.
+
+Test files follow `tests/test_<area>.lua`, where `<area>` names the module or integration under test (for example,
+`test_offsets.lua`, `test_store.lua`, or `test_nvim_lint.lua`). Within a file, nest cases under the public function
+name such as `to_position()` or `attach()`. Shared setup belongs in `tests/helpers.lua`.
+
+Run one file with `make test-file FILE=tests/test_offsets.lua`.
 
 To exercise the pull-request workflow locally, start Docker and install [`act`](https://github.com/nektos/act):
 
