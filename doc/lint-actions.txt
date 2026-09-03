@@ -1,0 +1,58 @@
+*lint-actions.txt*                         Native LSP actions for structured fixes
+
+===============================================================================
+CONTENTS                                                     *lint-actions-contents*
+
+1. Introduction                                      |lint-actions-introduction|
+2. Publishing                                              |lint-actions-publish|
+3. Adapters                                                |lint-actions-adapters|
+4. Health                                                    |lint-actions-health|
+
+===============================================================================
+1. INTRODUCTION                                         *lint-actions-introduction*
+
+lint-actions.nvim exposes fixes from linters and other producers as ordinary
+LSP code actions. It does not run tools or replace |vim.lsp.buf.code_action()|.
+
+Neovim 0.11 or newer is required.
+
+===============================================================================
+2. PUBLISHING                                                   *lint-actions-publish*
+
+                                                             *lint_actions.publish()*
+`publish({opts})`
+    Replaces the actions for one buffer and source. An empty `items` list
+    clears that source.
+
+    Fields: ~
+      bufnr   Buffer receiving the actions.
+      source  Stable producer identifier.
+      items   List of `{ range = lsp.Range, action = lsp.CodeAction }`.
+
+                                                               *lint_actions.clear()*
+`clear({opts})`
+    Clears one source for a buffer. Omit `source` to clear all sources.
+
+                                                              *lint_actions.ingest()*
+`ingest({opts})`
+    Parses tool output with `opts.adapter` and publishes the returned items.
+
+===============================================================================
+3. ADAPTERS                                                     *lint-actions-adapters*
+
+The bundled golangci-lint v2 adapter reads JSON SuggestedFixes: >lua
+
+  require('lint_actions.integrations.nvim_lint').attach({
+    linter = require('lint').linters.golangcilint,
+    adapter = require('lint_actions.adapters.golangci'),
+  })
+<
+The nvim-lint integration wraps the existing parser and does not run another
+linter process.
+
+===============================================================================
+4. HEALTH                                                         *lint-actions-health*
+
+Run `:checkhealth lint_actions` to check the Neovim requirement.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

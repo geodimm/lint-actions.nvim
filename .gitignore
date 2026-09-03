@@ -1,5 +1,14 @@
 # Compiled Lua sources
 luac.out
+.tmp/
+!.luarc.json
+
+# Local act inputs and artifacts
+.artifacts/
+.env
+.input
+.secrets
+.vars
 
 # luarocks build files
 *.src.rock
@@ -38,4 +47,3 @@ luac.out
 *.i*86
 *.x86_64
 *.hex
-

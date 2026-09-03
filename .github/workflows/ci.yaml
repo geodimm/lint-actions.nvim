@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      current: ${{ steps.version.outputs.current }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: version
+        name: Find current version
+        run: |
+          current="$(git tag --list 'v[0-9]*' --sort=-v:refname \
+            | sed -nE '/^v[0-9]+\.[0-9]+\.[0-9]+$/p' \
+            | head -n 1)"
+          current="${current:-unreleased}"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          {
+            echo '## Version'
+            echo
+            echo "Current release: \`$current\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  lint:
+    name: Lint and type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check formatting
+        uses: JohnnyMorganz/stylua-action@v5
+        with:
+          version: 2.5.2
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --check .
+
+      - name: Run Luacheck
+        uses: lunarmodules/luacheck@v1
+        with:
+          args: lua tests
+
+      - name: Install type-check tools
+        env:
+          LUALS_VERSION: 3.19.1
+          NEOVIM_VERSION: v0.11.0
+        run: |
+          mkdir -p "$RUNNER_TEMP/luals"
+          curl -fsSL "https://github.com/neovim/neovim/releases/download/$NEOVIM_VERSION/nvim-linux-x86_64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP"
+          curl -fsSL "https://github.com/LuaLS/lua-language-server/releases/download/$LUALS_VERSION/lua-language-server-$LUALS_VERSION-linux-x64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/luals"
+          echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/luals/bin" >> "$GITHUB_PATH"
+
+      - name: Run LuaLS
+        run: make typecheck
+
+  test:
+    name: Test Neovim ${{ matrix.neovim }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        neovim: [v0.11.0, stable, nightly]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+
+      - run: make test
+
+  release:
+    name: Prepare or publish release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [version, lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Write release summary
+        env:
+          CURRENT_VERSION: ${{ needs.version.outputs.current }}
+          RELEASE_CREATED: ${{ steps.release.outputs.release_created }}
+          RELEASE_URL: ${{ steps.release.outputs.html_url }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+        run: |
+          {
+            echo '## Release'
+            echo
+            if [[ "$RELEASE_CREATED" == 'true' ]]; then
+              echo "Published: [\`$TAG_NAME\`]($RELEASE_URL)"
+              echo
+              echo "Version: \`$RELEASE_VERSION\`"
+            else
+              echo "Current release: \`$CURRENT_VERSION\`"
+              echo
+              echo 'No release was published. Release Please will open or update a release PR when commits are releasable.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

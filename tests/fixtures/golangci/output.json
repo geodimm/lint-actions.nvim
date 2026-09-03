@@ -1,0 +1,44 @@
+{
+  "Issues": [
+    {
+      "FromLinter": "errorlint",
+      "Text": "non-wrapping format verb for fmt.Errorf. Use `%w` to format errors",
+      "Pos": { "Filename": "playground.go", "Offset": 462, "Line": 23, "Column": 41 },
+      "SuggestedFixes": [
+        {
+          "Message": "Use `%w` to format errors",
+          "TextEdits": [{ "Pos": 458, "End": 459, "NewText": "dw==" }]
+        }
+      ]
+    },
+    {
+      "FromLinter": "modernize",
+      "Text": "stringscut: strings.Index can be simplified using strings.Cut",
+      "Pos": { "Filename": "playground.go", "Offset": 116, "Line": 10, "Column": 14 },
+      "SuggestedFixes": [
+        {
+          "Message": "Simplify strings.Index call using strings.Cut",
+          "TextEdits": [
+            { "Pos": 143, "End": 153, "NewText": "b2s=" },
+            { "Pos": 165, "End": 178, "NewText": "YmVmb3Jl" },
+            { "Pos": 107, "End": 112, "NewText": "YmVmb3JlLCBfLCBvaw==" },
+            { "Pos": 124, "End": 129, "NewText": "Q3V0" }
+          ]
+        }
+      ]
+    },
+    {
+      "FromLinter": "usestdlibvars",
+      "Text": "\"404\" can be replaced by http.StatusNotFound",
+      "Pos": { "Filename": "playground.go", "Offset": 497, "Line": 25, "Column": 28 },
+      "SuggestedFixes": [
+        {
+          "Message": "",
+          "TextEdits": [
+            { "Pos": 497, "End": 500, "NewText": "aHR0cC5TdGF0dXNOb3RGb3VuZA==" }
+          ]
+        }
+      ]
+    }
+  ]
+}
