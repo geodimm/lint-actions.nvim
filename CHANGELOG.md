@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.4.0...v0.5.0) (2026-09-03)
+
+
+### Features
+
+* supply actions through registered providers ([#14](https://github.com/geodimm/lint-actions.nvim/issues/14)) ([044aab3](https://github.com/geodimm/lint-actions.nvim/commit/044aab3815b15a32b0dc3244b4906fae150ecdc3))
+
 ## [0.4.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.3.0...v0.4.0) (2026-09-03)
 
 
