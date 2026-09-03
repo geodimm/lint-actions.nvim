@@ -252,6 +252,45 @@ test('nvim-lint integration preserves parser results and wraps once', function()
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end)
 
+test('nvim-lint integration resolves factory linters by name', function()
+  local diagnostics = { { lnum = 0, col = 0, message = 'message', source = 'tool' } }
+  local adapter = {
+    source = 'tool',
+    parse = function()
+      return {}
+    end,
+  }
+  local loaded_lint = package.loaded.lint
+  package.loaded.lint = {
+    linters = {
+      dynamic = function()
+        return {
+          parser = function(_output, _bufnr, _cwd)
+            return diagnostics
+          end,
+        }
+      end,
+    },
+  }
+
+  require('lint_actions.integrations.nvim_lint').attach({
+    linter = 'dynamic',
+    adapter = adapter,
+  })
+
+  local factory = package.loaded.lint.linters.dynamic
+  require('lint_actions.integrations.nvim_lint').attach({
+    linter = 'dynamic',
+    adapter = adapter,
+  })
+
+  eq(factory, package.loaded.lint.linters.dynamic)
+  local definition = factory()
+  eq(true, definition._lint_actions_attached)
+  eq(diagnostics, definition.parser('', -1, vim.fn.getcwd()))
+  package.loaded.lint = loaded_lint
+end)
+
 for _, case in ipairs(tests) do
   local ok, err = xpcall(case.callback, debug.traceback)
   if ok then
