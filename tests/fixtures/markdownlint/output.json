@@ -1,0 +1,152 @@
+[
+  {
+    "fileName": "playground.md",
+    "lineNumber": 1,
+    "ruleNames": [
+      "MD041",
+      "first-line-heading",
+      "first-line-h1"
+    ],
+    "ruleDescription": "First line in a file should be a top-level heading",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.38.0/doc/md041.md",
+    "errorDetail": null,
+    "errorContext": "#Playground",
+    "errorRange": null,
+    "fixInfo": null
+  },
+  {
+    "fileName": "playground.md",
+    "lineNumber": 1,
+    "ruleNames": [
+      "MD018",
+      "no-missing-space-atx"
+    ],
+    "ruleDescription": "No space after hash on atx style heading",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.38.0/doc/md018.md",
+    "errorDetail": null,
+    "errorContext": "#Playground",
+    "errorRange": [
+      1,
+      2
+    ],
+    "fixInfo": {
+      "editColumn": 2,
+      "insertText": " "
+    }
+  },
+  {
+    "fileName": "playground.md",
+    "lineNumber": 3,
+    "ruleNames": [
+      "MD009",
+      "no-trailing-spaces"
+    ],
+    "ruleDescription": "Trailing spaces",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.38.0/doc/md009.md",
+    "errorDetail": "Expected: 0 or 2; Actual: 3",
+    "errorContext": null,
+    "errorRange": [
+      29,
+      3
+    ],
+    "fixInfo": {
+      "editColumn": 29,
+      "deleteCount": 3
+    }
+  },
+  {
+    "fileName": "playground.md",
+    "lineNumber": 5,
+    "ruleNames": [
+      "MD012",
+      "no-multiple-blanks"
+    ],
+    "ruleDescription": "Multiple consecutive blank lines",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.38.0/doc/md012.md",
+    "errorDetail": "Expected: 1; Actual: 2",
+    "errorContext": null,
+    "errorRange": null,
+    "fixInfo": {
+      "deleteCount": -1
+    }
+  },
+  {
+    "fileName": "playground.md",
+    "lineNumber": 6,
+    "ruleNames": [
+      "MD034",
+      "no-bare-urls"
+    ],
+    "ruleDescription": "Bare URL used",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.38.0/doc/md034.md",
+    "errorDetail": null,
+    "errorContext": "https://example.test",
+    "errorRange": [
+      7,
+      20
+    ],
+    "fixInfo": {
+      "editColumn": 7,
+      "deleteCount": 20,
+      "insertText": "<https://example.test>"
+    }
+  },
+  {
+    "fileName": "playground.md",
+    "lineNumber": 6,
+    "ruleNames": [
+      "MD013",
+      "line-length"
+    ],
+    "ruleDescription": "Line length",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.38.0/doc/md013.md",
+    "errorDetail": "Expected: 80; Actual: 150",
+    "errorContext": null,
+    "errorRange": [
+      81,
+      70
+    ],
+    "fixInfo": null
+  },
+  {
+    "fileName": "playground.md",
+    "lineNumber": 8,
+    "ruleNames": [
+      "MD030",
+      "list-marker-space"
+    ],
+    "ruleDescription": "Spaces after list markers",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.38.0/doc/md030.md",
+    "errorDetail": "Expected: 1; Actual: 3",
+    "errorContext": null,
+    "errorRange": [
+      1,
+      4
+    ],
+    "fixInfo": {
+      "editColumn": 2,
+      "deleteCount": 3,
+      "insertText": " "
+    }
+  },
+  {
+    "fileName": "playground.md",
+    "lineNumber": 9,
+    "ruleNames": [
+      "MD047",
+      "single-trailing-newline"
+    ],
+    "ruleDescription": "Files should end with a single newline character",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.38.0/doc/md047.md",
+    "errorDetail": null,
+    "errorContext": null,
+    "errorRange": [
+      22,
+      1
+    ],
+    "fixInfo": {
+      "editColumn": 23,
+      "insertText": "\n"
+    }
+  }
+]

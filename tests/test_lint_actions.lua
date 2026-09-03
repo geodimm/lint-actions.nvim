@@ -28,18 +28,23 @@ T['setup()']['enables integrations with defaults or options'] = function()
   mock_integration('markdownlint', function(options)
     calls.markdownlint = options
   end)
+  mock_integration('shellcheck', function(options)
+    calls.shellcheck = options
+  end)
 
   lint_actions.setup({
     integrations = {
       nvim_lint = {
         golangci = true,
         markdownlint = { source = 'custom-markdownlint' },
+        shellcheck = true,
       },
     },
   })
 
   eq(calls.golangci, {})
   eq(calls.markdownlint, { source = 'custom-markdownlint' })
+  eq(calls.shellcheck, {})
 end
 
 T['setup()']['can attach integrations on a later call'] = function()

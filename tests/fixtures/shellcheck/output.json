@@ -1,0 +1,134 @@
+{
+  "comments": [
+    {
+      "file": "playground.sh",
+      "line": 4,
+      "endLine": 4,
+      "column": 2,
+      "endColumn": 7,
+      "level": "warning",
+      "code": 2164,
+      "message": "Use 'cd ... || exit' or 'cd ... || return' in case cd fails.",
+      "fix": {
+        "replacements": [
+          {
+            "column": 7,
+            "endColumn": 7,
+            "endLine": 4,
+            "insertionPoint": "beforeStart",
+            "line": 4,
+            "precedence": 9,
+            "replacement": " || exit"
+          }
+        ]
+      }
+    },
+    {
+      "file": "playground.sh",
+      "line": 4,
+      "endLine": 4,
+      "column": 5,
+      "endColumn": 7,
+      "level": "info",
+      "code": 2086,
+      "message": "Double quote to prevent globbing and word splitting.",
+      "fix": {
+        "replacements": [
+          {
+            "column": 5,
+            "endColumn": 5,
+            "endLine": 4,
+            "insertionPoint": "afterEnd",
+            "line": 4,
+            "precedence": 11,
+            "replacement": "\""
+          },
+          {
+            "column": 7,
+            "endColumn": 7,
+            "endLine": 4,
+            "insertionPoint": "beforeStart",
+            "line": 4,
+            "precedence": 11,
+            "replacement": "\""
+          }
+        ]
+      }
+    },
+    {
+      "file": "playground.sh",
+      "line": 5,
+      "endLine": 5,
+      "column": 11,
+      "endColumn": 31,
+      "level": "style",
+      "code": 2006,
+      "message": "Use $(...) notation instead of legacy backticks `...`.",
+      "fix": {
+        "replacements": [
+          {
+            "column": 11,
+            "endColumn": 12,
+            "endLine": 5,
+            "insertionPoint": "afterEnd",
+            "line": 5,
+            "precedence": 12,
+            "replacement": "$("
+          },
+          {
+            "column": 30,
+            "endColumn": 31,
+            "endLine": 5,
+            "insertionPoint": "beforeStart",
+            "line": 5,
+            "precedence": 12,
+            "replacement": ")"
+          }
+        ]
+      }
+    },
+    {
+      "file": "playground.sh",
+      "line": 6,
+      "endLine": 6,
+      "column": 19,
+      "endColumn": 21,
+      "level": "warning",
+      "code": 2166,
+      "message": "Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.",
+      "fix": null
+    },
+    {
+      "file": "playground.sh",
+      "line": 7,
+      "endLine": 7,
+      "column": 10,
+      "endColumn": 12,
+      "level": "info",
+      "code": 2086,
+      "message": "Double quote to prevent globbing and word splitting.",
+      "fix": {
+        "replacements": [
+          {
+            "column": 10,
+            "endColumn": 10,
+            "endLine": 7,
+            "insertionPoint": "afterEnd",
+            "line": 7,
+            "precedence": 14,
+            "replacement": "\""
+          },
+          {
+            "column": 12,
+            "endColumn": 12,
+            "endLine": 7,
+            "insertionPoint": "beforeStart",
+            "line": 7,
+            "precedence": 14,
+            "replacement": "\""
+          }
+        ]
+      }
+    }
+  ]
+}
