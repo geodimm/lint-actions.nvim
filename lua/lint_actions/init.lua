@@ -39,6 +39,23 @@ local function version_edit(action, uri, version)
     return action
   end
 
+  -- Text edits do not identify their target document. Accept one edit or a
+  -- list as a convenient same-buffer shorthand, then put the protocol-correct
+  -- WorkspaceEdit on the CodeAction returned to Neovim.
+  local text_edit_range = rawget(edit, 'range')
+  if text_edit_range or vim.islist(edit) then
+    local edits = text_edit_range and { edit } or edit
+    action.edit = {
+      documentChanges = {
+        {
+          textDocument = { uri = uri, version = version },
+          edits = edits,
+        },
+      },
+    }
+    return action
+  end
+
   if edit.changes then
     edit.documentChanges = edit.documentChanges or {}
     for edit_uri, edits in pairs(edit.changes) do

@@ -1,6 +1,11 @@
+---@alias LintActions.Edit lsp.TextEdit|lsp.TextEdit[]|lsp.WorkspaceEdit
+
+---@class LintActions.CodeAction : lsp.CodeAction
+---@field edit? LintActions.Edit A TextEdit or list targets the published buffer; a WorkspaceEdit may target multiple resources.
+
 ---@class LintActions.Item
 ---@field range lsp.Range Range in which the action is offered.
----@field action lsp.CodeAction Action returned to the LSP client.
+---@field action LintActions.CodeAction Action returned to the LSP client.
 
 ---@class LintActions.PublishOptions
 ---@field bufnr integer
