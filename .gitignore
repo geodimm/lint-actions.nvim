@@ -1,6 +1,7 @@
 # Compiled Lua sources
 luac.out
 .tmp/
+nvim.log
 !.luarc.json
 
 # Local act inputs and artifacts
