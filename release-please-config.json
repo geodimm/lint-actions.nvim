@@ -3,6 +3,7 @@
   "packages": {
     ".": {
       "release-type": "simple",
+      "initial-version": "0.1.0",
       "include-component-in-tag": false,
       "include-v-in-tag": true
     }
