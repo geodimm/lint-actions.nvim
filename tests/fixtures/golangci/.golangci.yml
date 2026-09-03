@@ -1,0 +1,10 @@
+# Pins the linters this fixture's output.json was captured with, so
+# regenerating it does not depend on a personal or repository-wide config.
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errorlint
+    - modernize
+    - usestdlibvars

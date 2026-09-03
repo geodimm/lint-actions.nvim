@@ -7,6 +7,7 @@ local integration_modules = {
   nvim_lint = {
     golangci = 'lint_actions.integrations.golangci',
     markdownlint = 'lint_actions.integrations.markdownlint',
+    shellcheck = 'lint_actions.integrations.shellcheck',
   },
 }
 

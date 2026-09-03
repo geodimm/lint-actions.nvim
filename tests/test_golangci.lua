@@ -114,21 +114,11 @@ T['parse()']['ignores other files and malformed text edits'] = function()
 end
 
 T['parse()']['handles representative golangci-lint v2 output'] = function()
-  local directory = vim.fs.joinpath(vim.fn.getcwd(), 'tests', 'fixtures', 'golangci')
-  local path = vim.fs.joinpath(directory, 'playground.go')
-  local bufnr = vim.fn.bufadd(path)
-  vim.fn.bufload(bufnr)
-  MiniTest.finally(function()
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      vim.api.nvim_buf_delete(bufnr, { force = true })
-    end
-  end)
-
-  local output = table.concat(vim.fn.readfile(vim.fs.joinpath(directory, 'output.json')), '\n')
+  local bufnr = helpers.fixture_buffer('golangci', 'playground.go')
   local items = adapter.parse({
-    output = output,
+    output = helpers.fixture_text('golangci', 'output.json'),
     bufnr = bufnr,
-    cwd = directory,
+    cwd = vim.fs.dirname(helpers.fixture_path('golangci', 'playground.go')),
     diagnostics = {},
   })
 

@@ -1,17 +1,7 @@
 local offsets = require('lint_actions.offsets')
+local paths = require('lint_actions.paths')
 
 local M = { source = 'golangci-lint' }
-
-local function absolute(path, cwd)
-  if type(path) ~= 'string' or path == '' then
-    return nil
-  end
-  local is_absolute = path:match('^/') or path:match('^%a:[/\\]') or path:match('^[/\\][/\\]')
-  if not is_absolute then
-    path = vim.fs.joinpath(cwd or vim.uv.cwd(), path)
-  end
-  return vim.fs.normalize(vim.fn.fnamemodify(path, ':p'))
-end
 
 local function diagnostic_key(source, line, column, message)
   return table.concat({ source or '', line, column, message or '' }, '\0')
@@ -96,14 +86,14 @@ function M.parse(context)
     return {}
   end
 
-  local filename = absolute(vim.api.nvim_buf_get_name(context.bufnr), context.cwd)
+  local filename = paths.absolute(vim.api.nvim_buf_get_name(context.bufnr), context.cwd)
   local text = offsets.buffer_text(context.bufnr)
   local ranges = diagnostic_ranges(context.diagnostics)
   local items = {}
 
   for _, issue in ipairs(result.Issues) do
     local position = type(issue) == 'table' and type(issue.Pos) == 'table' and issue.Pos or nil
-    local reported = position and absolute(position.Filename, context.cwd) or nil
+    local reported = position and paths.absolute(position.Filename, context.cwd) or nil
     if filename and reported == filename and type(issue.SuggestedFixes) == 'table' then
       local range = issue_range(issue, text, ranges)
       for _, fix in ipairs(issue.SuggestedFixes) do

@@ -11,6 +11,7 @@
 ---@class LintActions.NvimLintIntegrationOptions
 ---@field golangci? boolean|LintActions.GolangciOptions Enable with defaults using `true`, or pass integration options.
 ---@field markdownlint? boolean|LintActions.MarkdownlintOptions Enable with defaults using `true`, or pass integration options.
+---@field shellcheck? boolean|LintActions.ShellcheckOptions Enable with defaults using `true`, or pass integration options.
 
 ---@class LintActions.IntegrationsOptions
 ---@field nvim_lint? false|LintActions.NvimLintIntegrationOptions Tools whose nvim-lint output should provide actions.

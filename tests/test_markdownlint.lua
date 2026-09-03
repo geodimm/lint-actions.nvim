@@ -146,4 +146,22 @@ T['parse()']['omits malformed and non-fixable issues'] = function()
   eq(adapter.parse({ output = '[]', bufnr = -1, cwd = vim.fn.getcwd() }), {})
 end
 
+T['parse()']['handles representative markdownlint JSON output'] = function()
+  local bufnr = helpers.fixture_buffer('markdownlint', 'playground.md')
+  local items = adapter.parse({
+    output = helpers.fixture_text('markdownlint', 'output.json'),
+    bufnr = bufnr,
+    cwd = vim.fs.dirname(helpers.fixture_path('markdownlint', 'playground.md')),
+  })
+
+  -- Six of the eight findings carry fixInfo; MD041 and MD013 have none.
+  eq(#items, 7)
+  eq(items[1].action.title, 'Fix MD018: No space after hash on atx style heading')
+
+  local fix_all = items[#items].action
+  eq(fix_all.kind, 'source.fixAll.markdownlint')
+  apply(fix_all, bufnr)
+  eq(helpers.written_text(bufnr), helpers.fixture_text('markdownlint', 'fixed.md'))
+end
+
 return T

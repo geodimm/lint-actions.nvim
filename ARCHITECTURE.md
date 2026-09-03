@@ -42,7 +42,8 @@ asks for them.
 
 You can call `publish()` yourself with ready-made actions. Or you can let an
 *adapter* do the conversion: adapters know how to read a specific tool's
-output, such as golangci-lint or markdownlint JSON, and turn it into actions.
+output, such as golangci-lint, markdownlint, or shellcheck JSON, and turn it
+into actions.
 
 The [nvim-lint](https://github.com/mfussenegger/nvim-lint) integration is the
 usual way to feed an adapter. It reuses output nvim-lint already collected, so

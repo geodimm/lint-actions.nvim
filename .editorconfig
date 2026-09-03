@@ -13,3 +13,10 @@ indent_style = tab
 
 [*.md]
 trim_trailing_whitespace = false
+
+# Fixtures are captured tool output and the exact files that output describes.
+# Normalising them on save moves the positions the tests assert against.
+[tests/fixtures/**]
+indent_style = unset
+insert_final_newline = false
+trim_trailing_whitespace = false

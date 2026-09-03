@@ -47,6 +47,7 @@ require('lint_actions').setup({
     nvim_lint = {
       golangci = true,
       markdownlint = true,
+      shellcheck = true,
     },
   },
 })
@@ -81,9 +82,10 @@ Each integration has its own help page covering its requirements, options, and q
 
 - [golangci-lint with nvim-lint](doc/lint-actions-golangci.txt)
 - [markdownlint-cli with nvim-lint](doc/lint-actions-markdownlint.txt)
+- [shellcheck with nvim-lint](doc/lint-actions-shellcheck.txt)
 
-Both are also available in Neovim as `:help lint-actions-golangci` and
-`:help lint-actions-markdownlint`.
+They are also available in Neovim as `:help lint-actions-golangci`,
+`:help lint-actions-markdownlint`, and `:help lint-actions-shellcheck`.
 
 The nvim-lint bridge works for other tools too. It keeps the diagnostics from
 any function-based nvim-lint parser while handing the same raw output to a fix

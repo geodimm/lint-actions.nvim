@@ -44,6 +44,7 @@ Neovim 0.11 or newer is required.
             markdownlint = {
               source = 'my-markdownlint',
             },
+            shellcheck = true,
           },
         },
       })
@@ -64,6 +65,7 @@ second time. Each has its own guide: ~
 
   golangci-lint                                        |lint-actions-golangci|
   markdownlint                                     |lint-actions-markdownlint|
+  shellcheck                                         |lint-actions-shellcheck|
 
 Those guides cover requirements, configuration, which actions you get, and
 tool-specific caveats.
