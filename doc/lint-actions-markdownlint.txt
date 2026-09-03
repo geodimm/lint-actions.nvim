@@ -3,9 +3,9 @@
 ===============================================================================
 MARKDOWNLINT                                       *lint-actions-markdownlint*
 
-markdownlint-cli knows how to fix most of what it reports. This integration
-turns those fixes into Neovim code actions. It reads output nvim-lint has
-already collected, so markdownlint does not run twice.
+markdownlint-cli can fix most of the issues it reports. This integration turns
+those fixes into Neovim code actions. It reads output nvim-lint has already
+collected, so markdownlint does not run twice.
 
 REQUIREMENTS ~
 

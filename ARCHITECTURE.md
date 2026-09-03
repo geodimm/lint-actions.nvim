@@ -36,7 +36,7 @@ Use `publish()` for fixes computed before a code-action request, such as the
 result of an external tool run. Published fixes remain in the action store
 until their source replaces or clears them.
 
-`publish()` accepts ready-made actions. An *adapter* can instead parse a
+`publish()` accepts prebuilt actions. An *adapter* can instead parse a
 specific tool's output, such as golangci-lint, markdownlint, shellcheck JSON, or
 the reusable SARIF format, and return actions.
 
@@ -44,7 +44,7 @@ The [nvim-lint](https://github.com/mfussenegger/nvim-lint) integration passes
 output already collected by nvim-lint to an adapter, avoiding a second linter
 run.
 
-#### How the nvim-lint integration hooks in
+#### nvim-lint parser wrapping
 
 nvim-lint runs the linter process and publishes the diagnostics. Each linter
 definition has a `parser` function that reads the tool's output. That parser
@@ -56,18 +56,15 @@ The integration wraps it. When nvim-lint calls the parser, the integration:
 2. hands both the diagnostics and the same raw output to the adapter,
 3. returns the diagnostics to nvim-lint untouched.
 
-The adapter receives the raw output and parsed diagnostics without changing
-the diagnostics returned to nvim-lint.
-
 Sometimes an adapter needs richer output than the linter produces by default,
 such as JSON instead of plain text. Adding a `--json` argument alone would
 break diagnostics because the old parser cannot read the new format. The
 argument and parser must change together.
 
-The `configure` hook changes both together. This can be done directly for a
-table-based linter. For a factory, which returns a new definition on every run,
-the integration wraps the factory and applies `configure` to each definition
-before wrapping its parser.
+The `configure` hook updates the linter definition before parser wrapping.
+Table-based linters can also be modified directly. For a factory, which returns
+a new definition on every run, the integration applies `configure` to each
+generated definition before wrapping its parser.
 
 ### Pull: `register()`
 
@@ -80,7 +77,7 @@ code actions, the plugin calls `provide` with the current buffer state and uses
 the returned items.
 
 `provide` runs while Neovim waits for the response, so it must be synchronous
-and quick. If it throws, the plugin reports the error and skips that provider;
+and quick. If it raises an error, the plugin reports it and skips that provider;
 the rest of the request is unaffected.
 
 Both routes return the same item shape and use the same range and action-kind

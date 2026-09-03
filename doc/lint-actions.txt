@@ -65,7 +65,7 @@ bridge. Each has its own guide: ~
   shellcheck                                         |lint-actions-shellcheck|
   SARIF (reusable)                                         |lint-actions-sarif|
 
-Those guides cover requirements, configuration, which actions you get, and
+Those guides cover requirements, configuration, action types, and
 tool-specific caveats.
 
 NVIM-LINT ADAPTER API                                 *lint-actions-nvim-lint*
@@ -104,7 +104,7 @@ such as JSON instead of plain text. Adding a `--json` argument alone would
 break diagnostics because the old parser would receive the wrong format. The
 argument and parser must change together.
 
-You can do that by hand before attaching: >lua
+For a table-based linter, update both before attaching: >lua
 
   local lint = require('lint')
   local adapter = require('my_json_adapter')
@@ -143,7 +143,7 @@ wrapped. It runs once for a table definition and once per generated definition
 for a factory. Attaching without `configure` and adding one later raises an
 error because configuration must precede the wrapper.
 
-|lint-actions-markdownlint| is a full worked example of this pattern.
+See |lint-actions-markdownlint| for a complete configuration.
 
 SARIF 2.1.0 tools can share the bundled
 `require('lint_actions.adapters.sarif')` adapter. It reads standard
@@ -177,9 +177,9 @@ this case.
 
 To name your tool in the menu, put it in `action.title` as a bracketed suffix.
 The golangci-lint adapter titles its actions `Apply suggested fix [errcheck]`,
-which reaches the menu as `Apply suggested fix [errcheck] [lint-actions]`. A
-suffix composes with Neovim's client label and keeps actions sorted by
-operation rather than source.
+which reaches the menu as `Apply suggested fix [errcheck] [lint-actions]`.
+Keep the tool name as a suffix so actions remain sorted by operation rather
+than source.
 
                                                       *lint_actions.publish()*
 `publish({opts})`
@@ -223,10 +223,9 @@ FIXES THAT ARE NOT EDITS ~
 <
     Neovim looks the name up in `vim.lsp.commands` and in the client's own
     command table before asking the server. lint-actions advertises no
-    `executeCommandProvider`, so an unregistered name does not run. Neovim
-    instead warns that the server does not support the command. Prefer edits
-    when possible because they can be previewed, are checked against the
-    buffer version, and undo in one step.
+    `executeCommandProvider`, so Neovim does not execute an unregistered
+    command and warns instead. Prefer edits when possible because they can be
+    previewed, are checked against the buffer version, and undo in one step.
 
                                                         *lint_actions.clear()*
 `clear({opts})`
@@ -287,7 +286,7 @@ integrations only and rejects unknown names. Call |lint_actions.publish()| or
     synchronous and quick. A slow provider delays the menu. Publish fixes
     produced by an external process instead.
 
-    If `provide` throws, the error is reported with |vim.notify()| and that
+    If `provide` raises an error, it is reported with |vim.notify()| and that
     provider is skipped. Other providers and published actions still answer
     the same request.
 
@@ -295,11 +294,11 @@ integrations only and rejects unknown names. Call |lint_actions.publish()| or
     file buffers it applies to (`buftype` empty), including ones already
     open. Declaring `filetypes` keeps that narrow.
 
-    `examples/foldmarker.lua` in the repository is a small working provider.
-    It offers to add a fold marker modeline to a buffer that uses fold
-    markers but has no modeline. The provider reads the buffer, returns a
-    rangeless whole-buffer item, and uses `enabled` to exclude other buffers.
-    To use the example, copy it into your config and call its `setup()`.
+    `examples/foldmarker.lua` registers a provider that adds a fold-marker
+    modeline when the current buffer uses fold markers but does not define a
+    modeline. Its `enabled` callback limits the provider to matching buffers,
+    and `provide` returns a rangeless whole-buffer action. Copy the file into
+    your config and call its `setup()` to use it.
 
                                                    *lint_actions.unregister()*
 `unregister({source})`
@@ -312,15 +311,16 @@ integrations only and rejects unknown names. Call |lint_actions.publish()| or
 Run `:checkhealth lint_actions`. It shows the Neovim version requirement,
 every attached nvim-lint integration, and every registered provider.
 
-lint-actions only receives output from linter runs, so some integration problems
-would otherwise be silent. The check warns when: ~
+lint-actions only receives output from linter runs, so some integration
+problems would otherwise be silent. The check warns when: ~
 
-  - an attached linter is in no `linters_by_ft` entry, so nvim-lint never runs
-    it and no actions are ever published
+  - `linters_by_ft` assigns an attached linter to no filetype, so nvim-lint
+    never runs it and no actions are published
   - nvim-lint has no linter under the attached name
   - a linter's command is not executable
 
-A missing nvim-lint is not reported here. Attaching a linter by name needs it,
-so |lint_actions.setup()| already fails when it is absent.
+This check does not report a missing nvim-lint installation. When an
+integration attaches a linter by name, |lint_actions.setup()| fails
+immediately if nvim-lint is unavailable.
 
 vim:tw=78:ts=8:noet:ft=help:norl:

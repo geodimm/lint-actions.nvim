@@ -163,16 +163,16 @@ case.
 If you want your tool named in the menu, put it in `action.title` as a
 bracketed suffix. The golangci-lint adapter titles its actions
 `Apply suggested fix [errcheck]`, which reaches the menu as
-`Apply suggested fix [errcheck] [lint-actions]`. A suffix composes with
-Neovim's client label and keeps actions sorted by operation rather than source.
+`Apply suggested fix [errcheck] [lint-actions]`. Keep the tool name as a suffix
+so actions remain sorted by operation rather than source.
 
 ### Edits
 
 `action.edit` takes one `lsp.TextEdit`, a list of them, or a full `lsp.WorkspaceEdit`.
 
-A text edit only says "replace this range with this text", so `publish()`
-points it at `bufnr` and wraps it in a versioned workspace edit for you. This
-is the form to use for ordinary same-buffer linter fixes:
+An `lsp.TextEdit` has no document URI. For the same-buffer shorthand,
+`publish()` targets the edit at `bufnr` and wraps it in a versioned workspace
+edit:
 
 ```lua
 action = {
@@ -246,21 +246,21 @@ require('lint_actions').register({
 quickly. If it raises an error, the plugin reports it and skips that provider;
 the rest of the request still completes. See `:help lint-actions-providers`.
 
-[`examples/foldmarker.lua`](examples/foldmarker.lua) is a small working provider. It offers to add a
-fold marker modeline to a buffer that uses fold markers but has no modeline.
-It reads the buffer, returns a rangeless whole-buffer item, and uses `enabled`
-to limit the provider to relevant buffers. To use it, copy it into your config
-and call its `setup()`; it is not a bundled integration.
+[`examples/foldmarker.lua`](examples/foldmarker.lua) registers a provider that
+adds a fold-marker modeline when the current buffer uses fold markers but does
+not define a modeline. Its `enabled` callback limits the provider to matching
+buffers, and `provide` returns a rangeless whole-buffer action. Copy the file
+into your config and call its `setup()` to use it.
 
 ## Health
 
 `:checkhealth lint_actions` shows the Neovim version requirement, every
 attached nvim-lint integration, and every registered provider.
 
-lint-actions only receives output from linter runs, so some integration problems
-would otherwise be silent. The check warns when an attached linter is missing
-from `linters_by_ft`, when nvim-lint has no linter by that name, or when a
-linter's command is not executable.
+lint-actions only receives output from linter runs, so some integration
+problems would otherwise be silent. The check warns when an attached linter is
+missing from `linters_by_ft`, when nvim-lint has no linter by that name, or
+when a linter's command is not executable.
 
 ---
 
