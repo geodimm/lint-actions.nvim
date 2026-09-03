@@ -1,6 +1,12 @@
 local M = {}
 
 local configured = false
+local integration_modules = {
+  nvim_lint = {
+    golangci = 'lint_actions.integrations.golangci',
+    markdownlint = 'lint_actions.integrations.markdownlint',
+  },
+}
 
 local function expect(value, expected, name)
   if type(value) ~= expected then
@@ -75,19 +81,81 @@ local function version_edit(action, uri, version)
   return action
 end
 
----Set up buffer cleanup. Calling this function more than once is safe.
-function M.setup()
-  if configured then
-    return
-  end
-  configured = true
+---@param integrations table<string, boolean|table>
+local function validate_integrations(integrations)
+  expect(integrations, 'table', 'options.integrations')
 
-  vim.api.nvim_create_autocmd('BufWipeout', {
-    group = vim.api.nvim_create_augroup('lint_actions', { clear = true }),
-    callback = function(event)
-      require('lint_actions.store').clear(event.buf)
-    end,
-  })
+  for integration, tools in pairs(integrations) do
+    local modules = integration_modules[integration]
+    if not modules then
+      error(('unknown integration: %s'):format(integration), 3)
+    end
+    if tools ~= false then
+      if type(tools) ~= 'table' then
+        error(('options.integrations.%s must be table, got %s'):format(integration, type(tools)), 3)
+      end
+      for tool, options in pairs(tools) do
+        if not modules[tool] then
+          error(('unknown %s integration: %s'):format(integration, tool), 3)
+        end
+        if options ~= false then
+          if options ~= true and type(options) ~= 'table' then
+            error(
+              ('options.integrations.%s.%s must be boolean or table, got %s'):format(integration, tool, type(options)),
+              3
+            )
+          end
+        end
+      end
+    end
+  end
+end
+
+---@param integrations table<string, boolean|table>
+local function attach_integrations(integrations)
+  for integration, tools in pairs(integrations) do
+    if tools ~= false then
+      ---@cast tools table
+      for tool, options in pairs(tools) do
+        if options ~= false then
+          require(integration_modules[integration][tool]).attach(options == true and {} or options)
+        end
+      end
+    end
+  end
+end
+
+---Set up buffer cleanup and enable configured integrations.
+---Calling this function more than once is safe; new integrations are attached.
+---@param options? LintActions.SetupOptions
+function M.setup(options)
+  if options == nil then
+    options = {}
+  end
+  expect(options, 'table', 'options')
+  for name in pairs(options) do
+    if name ~= 'integrations' then
+      error(('unknown setup option: %s'):format(name), 2)
+    end
+  end
+
+  if options.integrations ~= nil then
+    validate_integrations(options.integrations)
+  end
+
+  if not configured then
+    configured = true
+    vim.api.nvim_create_autocmd('BufWipeout', {
+      group = vim.api.nvim_create_augroup('lint_actions', { clear = true }),
+      callback = function(event)
+        require('lint_actions.store').clear(event.buf)
+      end,
+    })
+  end
+
+  if options.integrations ~= nil then
+    attach_integrations(options.integrations)
+  end
 end
 
 ---Replace the actions published by one source for a buffer.

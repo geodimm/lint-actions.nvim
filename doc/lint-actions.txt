@@ -4,9 +4,10 @@
 CONTENTS                                                     *lint-actions-contents*
 
 1. Introduction                                      |lint-actions-introduction|
-2. Publishing                                              |lint-actions-publish|
-3. Integrations                                        |lint-actions-integrations|
-4. Health                                                    |lint-actions-health|
+2. Setup                                                    |lint-actions-setup|
+3. Publishing                                              |lint-actions-publish|
+4. Integrations                                        |lint-actions-integrations|
+5. Health                                                    |lint-actions-health|
 
 ===============================================================================
 1. INTRODUCTION                                         *lint-actions-introduction*
@@ -17,7 +18,37 @@ LSP code actions. It does not run tools or replace |vim.lsp.buf.code_action()|.
 Neovim 0.11 or newer is required.
 
 ===============================================================================
-2. PUBLISHING                                                   *lint-actions-publish*
+2. SETUP                                                         *lint-actions-setup*
+
+                                                                 *lint_actions.setup()*
+`setup({opts})`
+    Initializes lint-actions. The core has no dependencies: >lua
+
+      require('lint_actions').setup()
+<
+    Bundled integrations require nvim-lint. Configure nvim-lint first, then
+    enable tools with `true` for their defaults or an options table: >lua
+
+      require('lint_actions').setup({
+        integrations = {
+          nvim_lint = {
+            golangci = true,
+            markdownlint = {
+              source = 'my-markdownlint',
+            },
+          },
+        },
+      })
+<
+    Calls are additive and idempotent. A later call may enable another
+    integration. `false` leaves an integration disabled but does not detach
+    one enabled earlier.
+
+    Integrations reuse nvim-lint output and never run linters themselves. See
+    |lint-actions-integrations| for their requirements and options.
+
+===============================================================================
+3. PUBLISHING                                                   *lint-actions-publish*
 
                                                              *lint_actions.publish()*
 `publish({opts})`
@@ -53,7 +84,7 @@ Neovim 0.11 or newer is required.
     Parses tool output with `opts.adapter` and publishes the returned items.
 
 ===============================================================================
-3. INTEGRATIONS             *lint-actions-integrations* *lint-actions-adapters*
+4. INTEGRATIONS             *lint-actions-integrations* *lint-actions-adapters*
 
 Bundled integrations reuse output from nvim-lint and do not launch a second
 linter process. Supported tools and their setup guides are: ~
@@ -123,7 +154,7 @@ Producers that already have normalized actions can bypass nvim-lint and use
 with |lint_actions.ingest()|.
 
 ===============================================================================
-4. HEALTH                                                         *lint-actions-health*
+5. HEALTH                                                         *lint-actions-health*
 
 Run `:checkhealth lint_actions` to check the Neovim requirement.
 

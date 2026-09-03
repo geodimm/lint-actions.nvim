@@ -16,14 +16,18 @@ REQUIREMENTS ~
 
 CONFIGURATION ~
 
-Attach the integration after loading nvim-lint: >lua
+Configure nvim-lint first, then enable the integration: >lua
 
   local lint = require('lint')
-
-  require('lint_actions').setup()
-  require('lint_actions.integrations.markdownlint').attach()
-
   lint.linters_by_ft.markdown = { 'markdownlint' }
+
+  require('lint_actions').setup({
+    integrations = {
+      nvim_lint = {
+        markdownlint = true,
+      },
+    },
+  })
 <
 markdownlint's normal text output does not contain fix information. The
 integration adds `--json` to expose `fixInfo` and, in the same operation,
@@ -44,16 +48,31 @@ preserves them: >lua
     '/path/to/markdownlint.yaml',
   })
 
-  require('lint_actions.integrations.markdownlint').attach()
+  require('lint_actions').setup({
+    integrations = {
+      nvim_lint = {
+        markdownlint = true,
+      },
+    },
+  })
 <
 The default linter name is `markdownlint`. Power users can supply a different
 name or concrete definition, and override the publication source: >lua
 
-  require('lint_actions.integrations.markdownlint').attach({
-    linter = 'my_markdownlint',
-    source = 'my-markdownlint',
+  require('lint_actions').setup({
+    integrations = {
+      nvim_lint = {
+        markdownlint = {
+          linter = 'my_markdownlint',
+          source = 'my-markdownlint',
+        },
+      },
+    },
   })
 <
+The lower-level `require('lint_actions.integrations.markdownlint').attach()`
+API accepts the same integration options.
+
 For custom adapters or other nvim-lint tools, use the lower-level
 |lint-actions-nvim-lint| interface.
 
