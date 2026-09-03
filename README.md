@@ -2,6 +2,8 @@
 
 Expose structured linter fixes as native Neovim LSP code actions. Actions work with `vim.lsp.buf.code_action()`, fzf-lua, Telescope, and other LSP clients without replacing their UI.
 
+![A golangci-lint fix exposed as a Neovim code action](docs/assets/demo.png)
+
 Requires Neovim 0.11 or newer. The core has no dependencies and does not run linters.
 
 ```lua

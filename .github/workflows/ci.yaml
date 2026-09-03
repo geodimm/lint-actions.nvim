@@ -39,7 +39,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   lint:
-    name: Lint and type-check
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
