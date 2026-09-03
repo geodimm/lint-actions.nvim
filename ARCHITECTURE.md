@@ -1,16 +1,23 @@
 # Architecture
 
-Neovim's code-action UI queries LSP clients, while linters run outside that
-interface. `lint-actions.nvim` runs an in-process LSP server that implements
-`textDocument/codeAction` for structured linter fixes. The built-in UI,
-fzf-lua, Telescope, and other LSP-aware pickers can show and apply its results.
+Neovim's code-action UI queries LSP clients, while linters and other action
+sources run outside that interface. `lint-actions.nvim` runs an in-process LSP
+server that exposes their structured actions to the built-in UI, fzf-lua,
+Telescope, and other LSP-aware pickers.
 
-The plugin does not run linters and does not draw any UI of its own.
+## Scope
 
-## Getting fixes in
+The server deliberately implements one LSP capability:
+`textDocument/codeAction`. The plugin neither runs external tools nor advertises
+diagnostics, formatting, or unrelated LSP capabilities, and it draws no UI.
+Action sources and adapters produce structured actions, lint-actions serves
+them through LSP, the selected UI handles selection and any preview, and Neovim
+applies the action and manages undo.
 
-The plugin accepts fixes through push and pull APIs. The choice depends on when
-the source computes them.
+## Getting actions in
+
+The plugin accepts actions through push and pull APIs. The choice depends on
+when the source computes them.
 
 ```mermaid
 flowchart LR
@@ -32,8 +39,8 @@ flowchart LR
 
 ### Push: `publish()`
 
-Use `publish()` for fixes computed before a code-action request, such as the
-result of an external tool run. Published fixes remain in the action store
+Use `publish()` for actions computed before a code-action request, such as the
+result of an external tool run. Published actions remain in the action store
 until their source replaces or clears them.
 
 `publish()` accepts prebuilt actions. An *adapter* can instead parse a
@@ -68,8 +75,8 @@ generated definition before wrapping its parser.
 
 ### Pull: `register()`
 
-Background tools can publish fixes when a run finishes. A fix derived directly
-from the current buffer would otherwise need autocmds, debouncing, and
+Background tools can publish actions when a run finishes. An action derived
+directly from the current buffer would otherwise need autocmds, debouncing, and
 invalidation to keep a published batch current.
 
 A registered provider computes those actions on demand. When Neovim requests
@@ -85,8 +92,8 @@ matching.
 
 ## What an action can contain
 
-For a fix inside the current buffer, put a `TextEdit` (or a list of them) in
-the action's `edit` field. `publish()` wraps that in the `WorkspaceEdit`
+For an action that edits the current buffer, put a `TextEdit` (or a list of
+them) in its `edit` field. `publish()` wraps that in the `WorkspaceEdit`
 required by the LSP `CodeAction` type and stamps it with the buffer's document
 version.
 
@@ -128,7 +135,7 @@ The reply is a list of plain `CodeAction` objects. Neovim or a third-party
 picker then handles selection, preview, and application through its normal LSP
 path.
 
-## Not applying stale fixes
+## Avoiding stale actions
 
 A published action is valid only for the buffer version from which it was
 computed. Two checks prevent stale edits.
