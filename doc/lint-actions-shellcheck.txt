@@ -15,14 +15,14 @@ REQUIREMENTS ~
 - shellcheck: https://github.com/koalaman/shellcheck
 
 Fix data only appears in shellcheck's `json1` output. nvim-lint's built-in
-`shellcheck` linter already runs `--format json1`, so there is nothing to
-configure. If you replaced those arguments with another format, the
-integration finds no fixes, and nvim-lint's own parser stops reporting
-diagnostics too.
+`shellcheck` linter already runs `--format json1`, so no additional
+configuration is required. If you replaced those arguments with another
+format, the integration finds no fixes, and nvim-lint's own parser stops
+reporting diagnostics too.
 
 CONFIGURATION ~
 
-Configure nvim-lint first, then turn the integration on and trigger the linter
+Configure nvim-lint first, then enable the integration and trigger the linter
 as you normally would: >lua
 
   local lint = require('lint')
@@ -40,7 +40,7 @@ Trigger nvim-lint from a command, a mapping, or an autocmd.
 
 Actions are only kept when the buffer is unmodified. A lint run started while
 the buffer is modified still updates diagnostics, but its fixes are dropped,
-because there is no way to be sure they match what is in the buffer now.
+because they cannot be matched reliably against the current buffer.
 
 ADVANCED CONFIGURATION ~
 
@@ -59,8 +59,8 @@ under: >lua
     },
   })
 <
-`require('lint_actions.integrations.shellcheck').attach()` takes the same
-options if you would rather call it directly.
+`require('lint_actions.integrations.shellcheck').attach()` accepts the same
+options for direct use.
 
 To write an adapter for a different tool, see |lint-actions-nvim-lint|.
 
@@ -77,13 +77,13 @@ There is also one whole-file action, with the kind
 <
 That whole-file edit produces the same text as `shellcheck --format=diff`: it
 follows shellcheck's own precedence ordering, and drops any fix that collides
-with one already taken. Findings with no fix still show as diagnostics, they
-just get no action.
+with one already taken. Findings with no fix still appear as diagnostics but
+have no action.
 
 A single fix is often several replacements at once, such as the opening and
 closing quote SC2086 wants to add. They are applied together as one action,
 and a fix is skipped entirely if any part of it cannot be placed in the
-buffer, since half of it would leave the script worse off.
+buffer, avoiding a partial correction.
 
 SOURCED FILES ~
 

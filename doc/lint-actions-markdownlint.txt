@@ -16,7 +16,7 @@ REQUIREMENTS ~
 
 CONFIGURATION ~
 
-Configure nvim-lint first, then turn the integration on: >lua
+Configure nvim-lint first, then enable the integration: >lua
 
   local lint = require('lint')
   lint.linters_by_ft.markdown = { 'markdownlint' }
@@ -29,10 +29,9 @@ Configure nvim-lint first, then turn the integration on: >lua
     },
   })
 <
-markdownlint's plain text output has no fix information in it, so the
-integration adds `--json`, which exposes the `fixInfo` field. Since the old
-parser cannot read JSON, it swaps that out at the same time for a JSON parser
-that produces the same diagnostics. nvim-lint carries on as before.
+markdownlint includes `fixInfo` only in JSON output. The integration adds
+`--json` and replaces the plain-text parser with a JSON parser that produces
+the same diagnostics.
 
 Your existing CLI arguments are kept, and an existing `--json` is not added a
 second time.
@@ -71,8 +70,8 @@ under: >lua
     },
   })
 <
-`require('lint_actions.integrations.markdownlint').attach()` takes the same
-options if you would rather call it directly.
+`require('lint_actions.integrations.markdownlint').attach()` accepts the same
+options for direct use.
 
 To write an adapter for a different tool, see |lint-actions-nvim-lint|.
 
@@ -87,7 +86,7 @@ Trigger nvim-lint after saving the buffer, for example: >lua
 <
 Actions are only kept when the buffer is unmodified. A lint run started while
 the buffer is modified still updates diagnostics, but its fixes are dropped,
-because there is no way to be sure they match what is in the buffer now.
+because they cannot be matched reliably against the current buffer.
 
 ACTIONS ~
 
@@ -101,14 +100,14 @@ There is also one whole-file action, with the kind
   Fix all markdownlint issues
 <
 That whole-file edit follows markdownlint's own ordering, de-duplication, and
-overlap rules. Findings for rules with no `fixInfo` still show as diagnostics,
-they just get no action.
+overlap rules. Findings for rules with no `fixInfo` still appear as
+diagnostics but have no action.
 
 DISABLING FORMAT ON SAVE ~
 
 If a formatter already runs `markdownlint --fix` on save, remove markdownlint
-from that formatter's configuration — otherwise it fixes things before you
-ever see an action. Keep it in nvim-lint so `BufWritePost` still refreshes
+from that formatter's configuration. Otherwise it applies the fixes before an
+action can be offered. Keep it in nvim-lint so `BufWritePost` still refreshes
 diagnostics and code actions.
 
 With Conform.nvim, drop the markdown entry from `formatters_by_ft`: >lua
@@ -119,7 +118,6 @@ With Conform.nvim, drop the markdown entry from `formatters_by_ft`: >lua
 <
 Conform.nvim: https://github.com/stevearc/conform.nvim
 
-Once nothing else refers to it, the formatter's markdownlint definition can go
-too.
+Remove the formatter's markdownlint definition if nothing else references it.
 
 vim:tw=78:ts=8:noet:ft=help:norl:
