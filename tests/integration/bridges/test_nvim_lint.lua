@@ -1,28 +1,11 @@
 local MiniTest = require('mini.test')
-local helpers = require('tests.helpers')
+local helpers = require('tests.support.nvim')
 local integration = require('lint_actions.integrations.nvim_lint')
 local store = require('lint_actions.store')
 
 local eq = helpers.eq
 local expect_error = helpers.expect_error
-local previous_lint
-local T = MiniTest.new_set({
-  hooks = {
-    pre_case = function()
-      store._reset()
-      previous_lint = package.loaded.lint
-      package.loaded.lint = {
-        lint = function(definition)
-          return { linter = definition, cancelled = false }
-        end,
-      }
-    end,
-    post_case = function()
-      store._reset()
-      package.loaded.lint = previous_lint
-    end,
-  },
-})
+local T = helpers.new_set()
 
 local function adapter(parse)
   return {
@@ -36,6 +19,7 @@ end
 T['attach()'] = MiniTest.new_set()
 
 T['attach()']['preserves parser results and wraps a concrete linter once'] = function()
+  helpers.mock_nvim_lint({})
   local diagnostics = { { lnum = 0, col = 0, message = 'message', source = 'tool' } }
   local calls = 0
   local linter = {
@@ -55,6 +39,7 @@ T['attach()']['preserves parser results and wraps a concrete linter once'] = fun
 end
 
 T['attach()']['forwards output, diagnostics, buffer, and cwd to the adapter'] = function()
+  helpers.mock_nvim_lint({})
   local observed
   local diagnostics = { { message = 'message' } }
   local linter = {
@@ -101,6 +86,7 @@ T['attach()']['resolves and wraps factory linters by name once'] = function()
 end
 
 T['attach()']['does not ingest an invalid buffer'] = function()
+  helpers.mock_nvim_lint({})
   local adapter_calls = 0
   local diagnostics = { { message = 'message' } }
   local linter = {
@@ -121,6 +107,7 @@ T['attach()']['does not ingest an invalid buffer'] = function()
 end
 
 T['attach()']['clears actions instead of ingesting a modified buffer'] = function()
+  helpers.mock_nvim_lint({})
   local adapter_calls = 0
   local linter = {
     parser = function(_output, _bufnr, _cwd)
@@ -154,6 +141,7 @@ T['attach()']['rejects a non-existing linter name'] = function()
 end
 
 T['attach()']['rejects concrete linter tables without a parser function'] = function()
+  helpers.mock_nvim_lint({})
   expect_error('lint-actions only supports nvim-lint parser functions', function()
     helpers.call(integration.attach, { linter = {}, adapter = adapter() })
   end)
@@ -176,6 +164,7 @@ T['attach()']['rejects factories returning invalid linter definitions'] = functi
 end
 
 T['attach()']['rejects invalid options, adapters, and linter values'] = function()
+  helpers.mock_nvim_lint({})
   expect_error('options', function()
     helpers.call(integration.attach)
   end)
@@ -197,6 +186,7 @@ T['attach()']['rejects invalid options, adapters, and linter values'] = function
 end
 
 T['attach()']['runs configure on the resolved linter before wrapping its parser'] = function()
+  helpers.mock_nvim_lint({})
   local configured = 0
   local diagnostics = { { lnum = 0, col = 0, message = 'message', source = 'tool' } }
   local definition = {
@@ -258,6 +248,7 @@ T['attach()']['runs configure once for a factory linter'] = function()
 end
 
 T['attach()']['refuses a configure step once another source wrapped the linter'] = function()
+  helpers.mock_nvim_lint({})
   local definition = {
     parser = function()
       return {}
@@ -275,9 +266,9 @@ T['attach()']['refuses a configure step once another source wrapped the linter']
   end)
 end
 
-T['runs'] = MiniTest.new_set()
+T['run snapshots'] = MiniTest.new_set()
 
-T['runs']['rejects output after editing and saving during a run'] = function()
+T['run snapshots']['editing invalidates a run even if the buffer is saved again'] = function()
   local diagnostics = { { message = 'original diagnostic' } }
   local definition = {
     parser = function()
@@ -306,7 +297,7 @@ T['runs']['rejects output after editing and saving during a run'] = function()
   eq(store.actions(bufnr, helpers.range(0, 0, 0, 0)), {})
 end
 
-T['runs']['keeps independent snapshots and ignores cancelled results'] = function()
+T['run snapshots']['late and cancelled runs cannot overwrite a fresh result'] = function()
   local definition = {
     parser = function()
       return {}
@@ -341,7 +332,7 @@ T['runs']['keeps independent snapshots and ignores cancelled results'] = functio
   eq(store.actions(bufnr, range)[1].title, 'fresh fix')
 end
 
-T['runs']['preserves unrelated linters and installs the guard only once'] = function()
+T['run snapshots']['preserves unrelated linters and installs the guard only once'] = function()
   local definition = {
     parser = function()
       return {}
@@ -367,7 +358,7 @@ T['runs']['preserves unrelated linters and installs the guard only once'] = func
   eq(rawequal(observed_options, options), true)
 end
 
-T['runs']['isolates snapshots for factory linters running in several buffers'] = function()
+T['run snapshots']['concurrent buffers keep independent snapshots even when a factory shares its definition'] = function()
   local definition = {
     parser = function()
       return {}

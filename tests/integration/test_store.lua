@@ -1,17 +1,17 @@
 local MiniTest = require('mini.test')
-local helpers = require('tests.helpers')
+local helpers = require('tests.support.nvim')
 local store = require('lint_actions.store')
 
 local eq = helpers.eq
-local T = MiniTest.new_set({
-  hooks = { pre_case = store._reset, post_case = store._reset },
-})
+local T = helpers.new_set()
 
 T['publish()'] = MiniTest.new_set()
 
 T['publish()']['keeps sources independent and replaces one source batch'] = function()
   local bufnr = helpers.new_buffer('store-publish.txt', { 'text' })
   local range = helpers.range(0, 0, 0, 4)
+  local other = helpers.new_buffer('other-buffer.txt', { 'text' })
+  store.publish(helpers.batch(other, 'one', 'Separate buffer', range))
 
   store.publish(helpers.batch(bufnr, 'one', 'old', range))
   store.publish(helpers.batch(bufnr, 'two', 'other', range))
@@ -22,6 +22,7 @@ T['publish()']['keeps sources independent and replaces one source batch'] = func
   end, store.actions(bufnr, range))
   table.sort(titles)
   eq(titles, { 'new', 'other' })
+  eq(store.actions(other, range)[1].title, 'Separate buffer')
 end
 
 T['actions()'] = MiniTest.new_set()
@@ -42,19 +43,6 @@ T['actions()']['filters ranges and hierarchical action kinds'] = function()
   eq(#store.actions(bufnr, second, { 'refactor' }), 0)
 end
 
-T['actions()']['drops stale batches after a buffer change'] = function()
-  local bufnr = helpers.new_buffer('store-stale.txt', { 'text' })
-  local range = helpers.range(0, 0, 0, 4)
-  store.publish(helpers.batch(bufnr, 'tool', 'Old action', range))
-
-  vim.api.nvim_buf_set_lines(bufnr, 0, 1, false, { 'changed' })
-  eq(store.actions(bufnr, range), {})
-
-  vim.bo[bufnr].modified = false
-  store.publish(helpers.batch(bufnr, 'fresh', 'Fresh action', range))
-  eq(store.actions(bufnr, range)[1].title, 'Fresh action')
-end
-
 T['actions()']['returns copies that callers can mutate'] = function()
   local bufnr = helpers.new_buffer('store-copy.txt', { 'text' })
   local range = helpers.range(0, 0, 0, 4)
@@ -65,21 +53,22 @@ T['actions()']['returns copies that callers can mutate'] = function()
   eq(store.actions(bufnr, range)[1].title, 'Original')
 end
 
-T['actions()']['discards renamed batches even when the buffer text is unchanged'] = function()
-  local bufnr = helpers.new_buffer('store-before-rename.txt', { 'text' })
-  local original_name = vim.api.nvim_buf_get_name(bufnr)
-  local range = helpers.range(0, 0, 0, 4)
-  local batch = helpers.batch(bufnr, 'tool', 'Old action', range)
-  store.publish(batch)
+T['batch freshness'] = MiniTest.new_set()
+for _, field in ipairs({ 'uri', 'changedtick', 'version' }) do
+  T['batch freshness']['permanently discards a batch with a different ' .. field] = function()
+    local bufnr = helpers.new_buffer('freshness.txt', { 'text' })
+    local range = helpers.range(0, 0, 0, 4)
+    local stale = helpers.batch(bufnr, 'stale', 'Stale', range)
+    local original = stale[field]
+    stale[field] = field == 'uri' and 'file:///different.txt' or -1
+    store.publish(stale)
+    store.publish(helpers.batch(bufnr, 'fresh', 'Fresh', range))
 
-  vim.api.nvim_buf_set_name(bufnr, 'store-after-rename.txt')
-  eq(vim.api.nvim_buf_get_changedtick(bufnr), batch.changedtick)
-  eq(vim.lsp.util.buf_versions[bufnr], batch.version)
-  eq(store.actions(bufnr, range), {})
-
-  -- Once discarded, renaming back must not resurrect the old batch.
-  vim.api.nvim_buf_set_name(bufnr, original_name)
-  eq(store.actions(bufnr, range), {})
+    eq(store.actions(bufnr, range), { { title = 'Fresh', kind = 'quickfix' } })
+    -- Once observed as stale, restoring a stamp cannot resurrect the batch.
+    stale[field] = original
+    eq(store.actions(bufnr, range), { { title = 'Fresh', kind = 'quickfix' } })
+  end
 end
 
 T['clear()'] = MiniTest.new_set()

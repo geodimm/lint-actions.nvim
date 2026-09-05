@@ -1,18 +1,10 @@
 local MiniTest = require('mini.test')
-local helpers = require('tests.helpers')
+local helpers = require('tests.support.nvim')
 local nvim_lint = require('lint_actions.integrations.nvim_lint')
-local providers = require('lint_actions.providers')
 
 local eq = helpers.eq
 
-local function reset()
-  nvim_lint._reset()
-  providers._reset()
-end
-
-local T = MiniTest.new_set({
-  hooks = { pre_case = reset, post_case = reset },
-})
+local T = helpers.new_set()
 
 ---Capture what `:checkhealth` would report.
 ---@return table[]
