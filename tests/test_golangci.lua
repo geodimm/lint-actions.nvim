@@ -160,6 +160,7 @@ T['integration.attach()']['uses the default nvim-lint linter and bundled adapter
 end
 
 T['integration.attach()']['accepts a concrete linter and source override'] = function()
+  helpers.mock_nvim_lint({})
   local definition = linter()
   integration.attach({ linter = definition, source = 'custom-golangci' })
   eq(definition._lint_actions_attached, 'custom-golangci')

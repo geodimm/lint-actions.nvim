@@ -54,13 +54,19 @@ run.
 #### nvim-lint parser wrapping
 
 nvim-lint runs the linter process and publishes the diagnostics. Each linter
-definition has a `parser` function that reads the tool's output. That parser
-is the hook point.
+definition has a `parser` function that reads the tool's output.
+
+The integration wraps nvim-lint's `lint()` entry point once. For attached
+parsers, it captures the buffer's `changedtick` before the run and passes a
+shallow copy of the linter with a parser bound to that run. Other linters pass
+through unchanged. Each process keeps its own snapshot, including when a
+definition is shared by overlapping runs or several buffers.
 
 The integration wraps it. When nvim-lint calls the parser, the integration:
 
 1. calls the original parser to get the diagnostics,
-2. hands both the diagnostics and the same raw output to the adapter,
+2. hands both the diagnostics and the same raw output to the adapter if the
+   buffer has not changed and the run has not been cancelled,
 3. returns the diagnostics to nvim-lint untouched.
 
 Sometimes an adapter needs richer output than the linter produces by default,
@@ -138,7 +144,12 @@ path.
 ## Avoiding stale actions
 
 A published action is valid only for the buffer version from which it was
-computed. Two checks prevent stale edits.
+computed.
+
+The nvim-lint bridge rejects results if the buffer's `changedtick` differs
+from the snapshot captured before the run, even if the buffer was saved again
+while the linter was running. Cancelled runs are also ignored. Neither kind
+of rejected result clears actions that a newer run may have published.
 
 Before returning stored actions, the plugin compares the batch's recorded
 `changedtick` and LSP document version with the current buffer. A mismatch

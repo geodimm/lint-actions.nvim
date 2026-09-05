@@ -83,12 +83,18 @@ nvim-lint runs the linter process and publishes diagnostics. Each linter's
 `parser` function reads the output. lint-actions wraps that parser without
 changing the diagnostics: ~
 
-  1. nvim-lint runs the configured command.
+  1. lint-actions records the buffer's changed tick before nvim-lint runs the
+     configured command.
   2. The linter's parser turns the output into `vim.Diagnostic[]`.
   3. lint-actions hands the same raw output and those diagnostics to the
-     adapter.
+     adapter, unless the buffer changed during the run or the run was cancelled.
   4. The adapter returns code-action items.
   5. The original diagnostics go back to nvim-lint unchanged.
+
+Saving the buffer again while a linter runs does not make its old output fresh.
+Each run retains its own snapshot. Rejected output leaves any actions from a
+newer run alone. The integration installs one wrapper around nvim-lint's
+`lint()` entry point and only binds snapshots for attached parsers.
 
 Any function-based nvim-lint parser can be wrapped this way. To connect one to
 an adapter: >lua

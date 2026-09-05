@@ -262,6 +262,7 @@ T['integration.attach()'] = MiniTest.new_set({
 })
 
 T['integration.attach()']['publishes actions from a concrete linter'] = function()
+  helpers.mock_nvim_lint({})
   local definition = linter()
   integration.attach({ linter = definition })
   local wrapped = definition.parser

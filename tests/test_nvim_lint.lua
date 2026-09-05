@@ -5,8 +5,23 @@ local store = require('lint_actions.store')
 
 local eq = helpers.eq
 local expect_error = helpers.expect_error
+local previous_lint
 local T = MiniTest.new_set({
-  hooks = { pre_case = store._reset, post_case = store._reset },
+  hooks = {
+    pre_case = function()
+      store._reset()
+      previous_lint = package.loaded.lint
+      package.loaded.lint = {
+        lint = function(definition)
+          return { linter = definition, cancelled = false }
+        end,
+      }
+    end,
+    post_case = function()
+      store._reset()
+      package.loaded.lint = previous_lint
+    end,
+  },
 })
 
 local function adapter(parse)
@@ -258,6 +273,132 @@ T['attach()']['refuses a configure step once another source wrapped the linter']
       configure = function() end,
     })
   end)
+end
+
+T['runs'] = MiniTest.new_set()
+
+T['runs']['rejects output after editing and saving during a run'] = function()
+  local diagnostics = { { message = 'original diagnostic' } }
+  local definition = {
+    parser = function()
+      return diagnostics
+    end,
+  }
+  local lint = helpers.mock_nvim_lint({ tool = definition })
+  local calls = 0
+  integration.attach({
+    linter = 'tool',
+    adapter = adapter(function()
+      calls = calls + 1
+      return { { action = { title = 'outdated fix' } } }
+    end),
+  })
+
+  local bufnr = helpers.new_buffer('nvim-lint-saved.txt', { 'old text' })
+  local process = vim.api.nvim_buf_call(bufnr, function()
+    return lint.lint(definition)
+  end)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'new saved text' })
+  vim.bo[bufnr].modified = false
+
+  eq(process.linter.parser('old output', bufnr, vim.fn.getcwd()), diagnostics)
+  eq(calls, 0)
+  eq(store.actions(bufnr, helpers.range(0, 0, 0, 0)), {})
+end
+
+T['runs']['keeps independent snapshots and ignores cancelled results'] = function()
+  local definition = {
+    parser = function()
+      return {}
+    end,
+  }
+  local lint = helpers.mock_nvim_lint({ tool = definition })
+  integration.attach({
+    linter = 'tool',
+    adapter = adapter(function(context)
+      return { { action = { title = context.output } } }
+    end),
+  })
+  local bufnr = helpers.new_buffer('nvim-lint-overlapping.txt', { 'old' })
+  local first = vim.api.nvim_buf_call(bufnr, function()
+    return lint.lint(definition)
+  end)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'new' })
+  vim.bo[bufnr].modified = false
+  local second = vim.api.nvim_buf_call(bufnr, function()
+    return lint.lint(definition)
+  end)
+  second.linter.parser('fresh fix', bufnr, vim.fn.getcwd())
+  first.linter.parser('stale fix', bufnr, vim.fn.getcwd())
+  local range = helpers.range(0, 0, 0, 0)
+  eq(store.actions(bufnr, range)[1].title, 'fresh fix')
+
+  local cancelled = vim.api.nvim_buf_call(bufnr, function()
+    return lint.lint(definition)
+  end)
+  cancelled.cancelled = true
+  cancelled.linter.parser('cancelled fix', bufnr, vim.fn.getcwd())
+  eq(store.actions(bufnr, range)[1].title, 'fresh fix')
+end
+
+T['runs']['preserves unrelated linters and installs the guard only once'] = function()
+  local definition = {
+    parser = function()
+      return {}
+    end,
+  }
+  local lint = helpers.mock_nvim_lint({ tool = definition })
+  local observed_options
+  lint.lint = function(linter, options)
+    observed_options = options
+    return { linter = linter, cancelled = false }
+  end
+  integration.attach({ linter = 'tool', adapter = adapter() })
+  local guarded = lint.lint
+  integration.attach({ linter = 'tool', adapter = adapter() })
+  eq(lint.lint, guarded)
+  local unrelated = {
+    parser = function()
+      return {}
+    end,
+  }
+  local options = { cwd = '/work', ignore_errors = true }
+  eq(rawequal(lint.lint(unrelated, options).linter, unrelated), true)
+  eq(rawequal(observed_options, options), true)
+end
+
+T['runs']['isolates snapshots for factory linters running in several buffers'] = function()
+  local definition = {
+    parser = function()
+      return {}
+    end,
+  }
+  local lint = helpers.mock_nvim_lint({
+    tool = function()
+      return definition
+    end,
+  })
+  integration.attach({
+    linter = 'tool',
+    adapter = adapter(function(context)
+      return { { action = { title = context.output } } }
+    end),
+  })
+  local first_buf = helpers.new_buffer('nvim-lint-factory-first.txt', { 'old' })
+  local second_buf = helpers.new_buffer('nvim-lint-factory-second.txt', { 'unchanged' })
+  local first = vim.api.nvim_buf_call(first_buf, function()
+    return lint.lint(lint.linters.tool())
+  end)
+  local second = vim.api.nvim_buf_call(second_buf, function()
+    return lint.lint(lint.linters.tool())
+  end)
+  vim.api.nvim_buf_set_lines(first_buf, 0, -1, false, { 'new' })
+  vim.bo[first_buf].modified = false
+  first.linter.parser('old fix', first_buf, vim.fn.getcwd())
+  second.linter.parser('fresh fix', second_buf, vim.fn.getcwd())
+  local range = helpers.range(0, 0, 0, 0)
+  eq(store.actions(first_buf, range), {})
+  eq(store.actions(second_buf, range)[1].title, 'fresh fix')
 end
 
 return T
