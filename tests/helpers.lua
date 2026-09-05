@@ -6,7 +6,12 @@ M.eq = MiniTest.expect.equality
 
 function M.mock_nvim_lint(linters)
   local previous = package.loaded.lint
-  package.loaded.lint = { linters = linters }
+  package.loaded.lint = {
+    linters = linters,
+    lint = function(definition)
+      return { linter = definition, cancelled = false }
+    end,
+  }
   MiniTest.finally(function()
     package.loaded.lint = previous
   end)

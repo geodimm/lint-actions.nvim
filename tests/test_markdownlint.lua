@@ -181,6 +181,7 @@ T['integration.attach()'] = MiniTest.new_set({
 })
 
 T['integration.attach()']['enables JSON and publishes actions from a concrete linter'] = function()
+  helpers.mock_nvim_lint({})
   local definition = linter()
   integration.attach({ linter = definition })
   local wrapped = definition.parser
@@ -235,6 +236,7 @@ T['integration.attach()']['rejects invalid options and linter definitions'] = fu
 end
 
 T['integration.attach()']['does not duplicate an existing JSON argument'] = function()
+  helpers.mock_nvim_lint({})
   local definition = linter()
   table.insert(definition.args, '--json')
   integration.attach({ linter = definition })

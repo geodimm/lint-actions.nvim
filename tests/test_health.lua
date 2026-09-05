@@ -48,11 +48,7 @@ local function find(reported, pattern)
 end
 
 local function mock_nvim_lint(linters, linters_by_ft)
-  local previous = package.loaded.lint
-  package.loaded.lint = { linters = linters, linters_by_ft = linters_by_ft }
-  MiniTest.finally(function()
-    package.loaded.lint = previous
-  end)
+  helpers.mock_nvim_lint(linters).linters_by_ft = linters_by_ft
 end
 
 local function adapter()

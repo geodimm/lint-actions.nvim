@@ -2,6 +2,8 @@ local items = require('lint_actions.items')
 
 local M = {}
 local wrapped_factories = setmetatable({}, { __mode = 'k' })
+local wrapped_runners = setmetatable({}, { __mode = 'k' })
+local parser_factories = setmetatable({}, { __mode = 'k' })
 ---@type table<string, LintActions.NvimLintAttachment>
 local attachments = {}
 
@@ -28,6 +30,79 @@ local attachments = {}
 ---@field source? string Overrides the adapter's source.
 ---@field configure? LintActions.NvimLintConfigure Prepares the resolved linter before its parser is wrapped.
 
+---@class LintActions.NvimLintRun
+---@field bufnr integer
+---@field changedtick integer
+---@field process? { cancelled: boolean }
+
+---Bind the snapshot to the process's parser, not the shared linter definition.
+---nvim-lint calls `lint()` for both concrete definitions and resolved factories.
+local function guard_runs()
+  local lint = require('lint')
+  if wrapped_runners[lint.lint] then
+    return
+  end
+  local execute = lint.lint
+  local function guarded(linter, options)
+    local factory = parser_factories[linter.parser]
+    if not factory then
+      return execute(linter, options)
+    end
+
+    local bufnr = vim.api.nvim_get_current_buf()
+    local run = { bufnr = bufnr, changedtick = vim.api.nvim_buf_get_changedtick(bufnr) }
+    local definition = vim.tbl_extend('force', linter, { parser = factory(run) })
+    run.process = execute(definition, options)
+    return run.process
+  end
+  wrapped_runners[guarded] = true
+  lint.lint = guarded
+end
+
+---@param parse LintActions.NvimLintParser
+---@param adapter LintActions.Adapter
+---@param source string
+---@param run? LintActions.NvimLintRun
+---@return LintActions.NvimLintParser
+local function wrap_parser(parse, adapter, source, run)
+  return function(output, bufnr, cwd)
+    local diagnostics = parse(output, bufnr, cwd)
+
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      return diagnostics
+    end
+    if run then
+      if
+        bufnr ~= run.bufnr
+        or vim.api.nvim_buf_get_changedtick(bufnr) ~= run.changedtick
+        or (run.process and run.process.cancelled)
+      then
+        -- A newer run may already have published fresh actions. Leave them alone.
+        return diagnostics
+      end
+    end
+    if vim.bo[bufnr].modified then
+      require('lint_actions').clear({ bufnr = bufnr, source = source })
+      return diagnostics
+    end
+
+    local ok, err = pcall(require('lint_actions').ingest, {
+      adapter = adapter,
+      source = source,
+      output = output,
+      bufnr = bufnr,
+      cwd = cwd,
+      diagnostics = diagnostics,
+    })
+    if not ok then
+      vim.schedule(function()
+        vim.notify('lint-actions: ' .. err, vim.log.levels.ERROR)
+      end)
+    end
+    return diagnostics
+  end
+end
+
 ---@param linter LintActions.NvimLintLinter
 ---@param adapter LintActions.Adapter
 ---@param source string
@@ -50,31 +125,9 @@ local function attach(linter, adapter, source, configure)
 
   linter._lint_actions_attached = source
   local parse = linter.parser
-  linter.parser = function(output, bufnr, cwd)
-    local diagnostics = parse(output, bufnr, cwd)
-
-    if not vim.api.nvim_buf_is_valid(bufnr) then
-      return diagnostics
-    end
-    if vim.bo[bufnr].modified then
-      require('lint_actions').clear({ bufnr = bufnr, source = source })
-      return diagnostics
-    end
-
-    local ok, err = pcall(require('lint_actions').ingest, {
-      adapter = adapter,
-      source = source,
-      output = output,
-      bufnr = bufnr,
-      cwd = cwd,
-      diagnostics = diagnostics,
-    })
-    if not ok then
-      vim.schedule(function()
-        vim.notify('lint-actions: ' .. err, vim.log.levels.ERROR)
-      end)
-    end
-    return diagnostics
+  linter.parser = wrap_parser(parse, adapter, source)
+  parser_factories[linter.parser] = function(run)
+    return wrap_parser(parse, adapter, source, run)
   end
 end
 
@@ -121,6 +174,7 @@ function M.attach(options)
     error('options.linter must be a linter name or table')
   end
 
+  guard_runs()
   local name = type(linter_option) == 'string' and linter_option or nil
   attachments[source .. '\0' .. (name or '')] = { source = source, linter = name }
 end
