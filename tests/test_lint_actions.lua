@@ -156,6 +156,29 @@ T['publish()']['wraps a text edit for the published buffer'] = function()
   eq(document_edit.edits, { { range = range, newText = 'new' } })
 end
 
+T['publish()']['preserves explicit secondary versions and resource operations'] = function()
+  local bufnr = helpers.new_buffer('publish-secondary-versions.txt', { 'text' })
+  local secondary = helpers.new_buffer('publish-secondary-target.txt', { 'text' })
+  local uri = vim.uri_from_bufnr(secondary)
+  local range = helpers.range(0, 0, 0, 4)
+  local changes = {
+    { textDocument = { uri = uri, version = 42 }, edits = { { range = range, newText = 'new' } } },
+    { textDocument = { uri = uri, version = vim.NIL }, edits = {} },
+    { kind = 'rename', oldUri = uri, newUri = uri .. '.renamed' },
+  }
+  lint_actions.publish({
+    bufnr = bufnr,
+    source = 'tool',
+    items = { { action = { title = 'Update secondary document', edit = { documentChanges = changes } } } },
+  })
+  local published = assert(store.actions(bufnr, range)[1])
+  local normalized = assert(published.edit).documentChanges
+  assert(normalized)
+  eq(normalized[1].textDocument.version, 42)
+  eq(normalized[2].textDocument.version, vim.fn.has('nvim-0.12') == 1 and vim.NIL or nil)
+  eq(normalized[3].kind, 'rename')
+end
+
 T['publish()']['wraps a list of text edits for the published buffer'] = function()
   local bufnr = helpers.new_buffer('publish-text-edits.txt', { 'old text' })
   local first = { range = helpers.range(0, 0, 0, 3), newText = 'new' }
@@ -174,6 +197,40 @@ T['publish()']['wraps a list of text edits for the published buffer'] = function
 
   local published = store.actions(bufnr, first.range)[1]
   eq(published.edit.documentChanges[1].edits, { first, second })
+end
+
+for _, modern in ipairs({ false, true }) do
+  local release = modern and '0.12+' or '0.11'
+  T['publish()']['normalizes missing and explicit null versions for Neovim ' .. release] = function()
+    local bufnr = helpers.new_buffer('versions-' .. release .. '.txt', { 'text' })
+    local secondary_uri = vim.uri_from_fname(vim.fn.getcwd() .. '/secondary.txt')
+    local changes = {
+      { textDocument = { uri = secondary_uri }, edits = {} },
+      { textDocument = { uri = secondary_uri, version = vim.NIL }, edits = {} },
+      { textDocument = { uri = secondary_uri, version = 42 }, edits = {} },
+    }
+    local original = vim.deepcopy(changes)
+    local has = vim.fn.has
+    MiniTest.finally(function()
+      rawset(vim.fn, 'has', has)
+    end)
+    rawset(vim.fn, 'has', function(feature)
+      if feature == 'nvim-0.12' then
+        return modern and 1 or 0
+      end
+      return has(feature)
+    end)
+    local normalized = require('lint_actions.items').normalize({
+      { action = { title = 'Update secondary document', edit = { documentChanges = changes } } },
+    }, bufnr)
+    rawset(vim.fn, 'has', has)
+    local document_changes = assert(assert(normalized[1].action.edit).documentChanges)
+    local expected = modern and vim.NIL or nil
+    eq(document_changes[1].textDocument.version, expected)
+    eq(document_changes[2].textDocument.version, expected)
+    eq(document_changes[3].textDocument.version, 42)
+    eq(changes, original)
+  end
 end
 
 T['publish()']['offers an item without a range on every line of the buffer'] = function()

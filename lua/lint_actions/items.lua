@@ -1,4 +1,13 @@
+local compat = require('lint_actions.compat')
+
 local M = {}
+
+---@return any
+local function unknown_document_version()
+  -- Neovim 0.11 treats nil as an unknown version. Neovim 0.12's apply helper
+  -- distinguishes an explicit vim.NIL from a missing field.
+  return vim.fn.has('nvim-0.12') == 1 and vim.NIL or nil
+end
 
 ---Raise a type error. `level` follows `error()` and defaults to the caller of
 ---the function doing the validation, which is right when a public entry point
@@ -93,7 +102,7 @@ local function version_edit(action, uri, version)
     edit.documentChanges = edit.documentChanges or {}
     for edit_uri, edits in pairs(edit.changes) do
       table.insert(edit.documentChanges, {
-        textDocument = { uri = edit_uri, version = edit_uri == uri and version or nil },
+        textDocument = { uri = edit_uri },
         edits = edits,
       })
     end
@@ -101,8 +110,14 @@ local function version_edit(action, uri, version)
   end
 
   for _, change in ipairs(edit.documentChanges or {}) do
-    if change.textDocument and change.textDocument.uri == uri then
-      change.textDocument.version = version
+    local document = change.textDocument
+    if document then
+      if document.uri == uri then
+        document.version = version
+      elseif compat.isnil(document.version) then
+        -- Normalize both representations to the sentinel this Neovim accepts.
+        document.version = unknown_document_version()
+      end
     end
   end
   return action

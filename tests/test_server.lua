@@ -9,6 +9,49 @@ local T = MiniTest.new_set({
 
 T['LSP transport'] = MiniTest.new_set()
 
+for _, form in ipairs({ 'changes', 'documentChanges' }) do
+  T['LSP transport']['applies multi-file ' .. form .. ' with unknown secondary versions'] = function()
+    local primary = helpers.new_buffer('multi-primary-' .. form .. '.txt', { 'old' })
+    local secondary = helpers.new_buffer('multi-secondary-' .. form .. '.txt', { 'old' })
+    local primary_uri, secondary_uri = vim.uri_from_bufnr(primary), vim.uri_from_bufnr(secondary)
+    local range = helpers.range(0, 0, 0, 3)
+    local edits = { { range = range, newText = 'new' } }
+    local edit = form == 'changes' and { changes = { [primary_uri] = edits, [secondary_uri] = edits } }
+      or {
+        documentChanges = {
+          { textDocument = { uri = secondary_uri }, edits = edits },
+          { textDocument = { uri = primary_uri }, edits = edits },
+        },
+      }
+    local original = vim.deepcopy(edit)
+    require('lint_actions').publish({
+      bufnr = primary,
+      source = 'multi-file',
+      items = { { action = { title = 'Update both files', edit = edit } } },
+    })
+    eq(
+      vim.wait(1000, function()
+        local client = vim.lsp.get_clients({ bufnr = primary, name = 'lint-actions' })[1]
+        return client ~= nil and client.initialized == true
+      end),
+      true
+    )
+
+    local found = helpers.request(primary, range)
+    eq(#found, 1)
+    local version = vim.api.nvim_buf_get_changedtick(primary)
+    vim.lsp.util.apply_workspace_edit(found[1].edit, 'utf-8')
+    eq(vim.api.nvim_buf_get_lines(primary, 0, -1, false), { 'new' })
+    eq(vim.api.nvim_buf_get_lines(secondary, 0, -1, false), { 'new' })
+    for _, change in ipairs(found[1].edit.documentChanges) do
+      local expected = change.textDocument.uri == primary_uri and version
+        or (vim.fn.has('nvim-0.12') == 1 and vim.NIL or nil)
+      eq(change.textDocument.version, expected)
+    end
+    eq(edit, original)
+  end
+end
+
 T['LSP transport']['publishes native actions, filters them, and rejects stale batches'] = function()
   local actions = require('lint_actions')
   local bufnr = helpers.new_buffer(vim.fs.joinpath(vim.fn.getcwd(), 'tests', 'server.txt'), { 'alpha', 'beta' })
