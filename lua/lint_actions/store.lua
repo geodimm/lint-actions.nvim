@@ -31,6 +31,7 @@ function M.clear(bufnr, source)
 end
 
 ---Return fresh actions matching an LSP range and optional kind filter.
+---Ordering is handled by the server after merging provider actions.
 ---@param bufnr integer
 ---@param range lsp.Range
 ---@param only? lsp.CodeActionKind[]
@@ -58,7 +59,7 @@ function M.actions(bufnr, range, only)
     M.clear(bufnr, source)
   end
 
-  return items.sort(actions)
+  return actions
 end
 
 ---Reset all state. Intended for tests.
