@@ -90,8 +90,9 @@ code actions, the plugin calls `provide` with the current buffer state and uses
 the returned items.
 
 `provide` runs while Neovim waits for the response, so it must be synchronous
-and quick. If it raises an error, the plugin reports it and skips that provider;
-the rest of the request is unaffected.
+and quick. Errors during execution, validation, normalization, or filtering are
+reported and discard that provider's entire result. Other providers and
+published actions still answer the request.
 
 Both routes return the same item shape and use the same range and action-kind
 matching.
