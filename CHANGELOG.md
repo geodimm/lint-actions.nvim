@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.1](https://github.com/geodimm/lint-actions.nvim/compare/v0.8.0...v0.8.1) (2026-09-05)
+
+
+### Bug Fixes
+
+* discard published actions after buffer renames ([#36](https://github.com/geodimm/lint-actions.nvim/issues/36)) ([c5bce47](https://github.com/geodimm/lint-actions.nvim/commit/c5bce47ef2430f2931bf8ad01ceafd5a3e726bd9))
+* isolate provider action processing errors ([#37](https://github.com/geodimm/lint-actions.nvim/issues/37)) ([964216e](https://github.com/geodimm/lint-actions.nvim/commit/964216efca31a58589f72e9e5256397b7c525682))
+* normalize unknown versions in multi-file edits ([#35](https://github.com/geodimm/lint-actions.nvim/issues/35)) ([f01f5b2](https://github.com/geodimm/lint-actions.nvim/commit/f01f5b22ebd57e571b645125a91bf74057369786))
+* reject malformed golangci suggestions atomically ([#38](https://github.com/geodimm/lint-actions.nvim/issues/38)) ([fc33db8](https://github.com/geodimm/lint-actions.nvim/commit/fc33db88c04cab752d017a999206c86f286bde2a))
+* reject stale nvim-lint results ([#33](https://github.com/geodimm/lint-actions.nvim/issues/33)) ([c6e9c91](https://github.com/geodimm/lint-actions.nvim/commit/c6e9c91a5c52257026eae9220055f98d8116eef3))
+
 ## [0.8.0](https://github.com/geodimm/lint-actions.nvim/compare/v0.7.0...v0.8.0) (2026-09-03)
 
 
