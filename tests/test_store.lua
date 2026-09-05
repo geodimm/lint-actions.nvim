@@ -66,6 +66,23 @@ T['actions()']['returns copies that callers can mutate'] = function()
   eq(store.actions(bufnr, range)[1].title, 'Original')
 end
 
+T['actions()']['discards renamed batches even when the buffer text is unchanged'] = function()
+  local bufnr = helpers.new_buffer('store-before-rename.txt', { 'text' })
+  local original_name = vim.api.nvim_buf_get_name(bufnr)
+  local range = helpers.range(0, 0, 0, 4)
+  local batch = helpers.batch(bufnr, 'tool', 'Old action', range)
+  store.publish(batch)
+
+  vim.api.nvim_buf_set_name(bufnr, 'store-after-rename.txt')
+  eq(vim.api.nvim_buf_get_changedtick(bufnr), batch.changedtick)
+  eq(vim.lsp.util.buf_versions[bufnr], batch.version)
+  eq(store.actions(bufnr, range), {})
+
+  -- Once discarded, renaming back must not resurrect the old batch.
+  vim.api.nvim_buf_set_name(bufnr, original_name)
+  eq(store.actions(bufnr, range), {})
+end
+
 T['clear()'] = MiniTest.new_set()
 
 T['clear()']['clears one source or the whole buffer and tolerates missing state'] = function()

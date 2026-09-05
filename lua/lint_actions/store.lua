@@ -37,12 +37,13 @@ end
 ---@return lsp.CodeAction[]
 function M.actions(bufnr, range, only)
   local actions = {}
+  local uri = vim.uri_from_bufnr(bufnr)
   local changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
   local version = vim.lsp.util.buf_versions[bufnr]
   local stale = {}
 
   for source, batch in pairs(batches[bufnr] or {}) do
-    if batch.changedtick == changedtick and batch.version == version then
+    if batch.uri == uri and batch.changedtick == changedtick and batch.version == version then
       for _, item in ipairs(batch.items) do
         if items.matches(item, range, only) then
           table.insert(actions, vim.deepcopy(item.action))
