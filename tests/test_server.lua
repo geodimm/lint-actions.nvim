@@ -128,6 +128,36 @@ T['LSP transport']['returns command-carrying actions unchanged'] = function()
   eq(found[1].command, command)
 end
 
+T['LSP transport']['requires fresh publication after a buffer rename'] = function()
+  local actions = require('lint_actions')
+  local bufnr = helpers.new_buffer('server-before-rename.txt', { 'old' })
+  local range = helpers.range(0, 0, 0, 3)
+  local publication = {
+    bufnr = bufnr,
+    source = 'tool',
+    items = { { action = { title = 'Replace text', edit = { range = range, newText = 'new' } } } },
+  }
+  actions.publish(publication)
+  eq(
+    vim.wait(1000, function()
+      local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'lint-actions' })[1]
+      return client ~= nil and client.initialized == true
+    end),
+    true
+  )
+  eq(#helpers.request(bufnr, range), 1)
+
+  vim.api.nvim_buf_set_name(bufnr, 'server-after-rename.txt')
+  eq(helpers.request(bufnr, range), {})
+
+  actions.publish(publication)
+  local found = helpers.request(bufnr, range)
+  eq(#found, 1)
+  eq(found[1].edit.documentChanges[1].textDocument.uri, vim.uri_from_bufnr(bufnr))
+  vim.lsp.util.apply_workspace_edit(found[1].edit, 'utf-8')
+  eq(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), { 'new' })
+end
+
 T['_cmd()'] = MiniTest.new_set()
 
 T['_cmd()']['implements initialization, shutdown, unsupported methods, and one exit'] = function()

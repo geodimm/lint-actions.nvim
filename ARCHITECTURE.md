@@ -151,9 +151,10 @@ from the snapshot captured before the run, even if the buffer was saved again
 while the linter was running. Cancelled runs are also ignored. Neither kind
 of rejected result clears actions that a newer run may have published.
 
-Before returning stored actions, the plugin compares the batch's recorded
-`changedtick` and LSP document version with the current buffer. A mismatch
-discards the batch.
+Before returning stored actions, the plugin compares the batch's recorded URI,
+`changedtick`, and LSP document version with the current buffer. A mismatch
+discards the batch, including when a buffer was renamed without changing its
+text. A source must publish again to target the new URI.
 
 Edits for the current buffer are also sent as versioned
 `documentChanges`. If the buffer changes between opening the menu and selecting
