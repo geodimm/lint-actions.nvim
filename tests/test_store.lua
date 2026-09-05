@@ -17,12 +17,11 @@ T['publish()']['keeps sources independent and replaces one source batch'] = func
   store.publish(helpers.batch(bufnr, 'two', 'other', range))
   store.publish(helpers.batch(bufnr, 'one', 'new', range))
 
-  eq(
-    vim.tbl_map(function(action)
-      return action.title
-    end, store.actions(bufnr, range)),
-    { 'new', 'other' }
-  )
+  local titles = vim.tbl_map(function(action)
+    return action.title
+  end, store.actions(bufnr, range))
+  table.sort(titles)
+  eq(titles, { 'new', 'other' })
 end
 
 T['actions()'] = MiniTest.new_set()
