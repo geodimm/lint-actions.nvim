@@ -1,18 +1,10 @@
 local MiniTest = require('mini.test')
-local helpers = require('tests.helpers')
+local helpers = require('tests.support.nvim')
 local providers = require('lint_actions.providers')
-local store = require('lint_actions.store')
 
 local eq = helpers.eq
 
-local function reset()
-  store._reset()
-  providers._reset()
-end
-
-local T = MiniTest.new_set({
-  hooks = { pre_case = reset, post_case = reset },
-})
+local T = helpers.new_set()
 
 ---The example ships as documentation, so load it by path rather than by
 ---package name to keep it honest about being copied into a config.

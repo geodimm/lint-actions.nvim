@@ -9,15 +9,29 @@ luarocks --lua-version=5.1 --lua-dir="$LUAJIT_PREFIX" --local install luacheck 1
 eval "$(luarocks --lua-version=5.1 --lua-dir="$LUAJIT_PREFIX" --local path)"
 ```
 
+The `lint` and `typecheck` Make targets load this LuaRocks environment automatically when Homebrew and LuaRocks
+are available. Linux CI skips that optional setup and uses its installed standalone tools.
+
 Run the complete check with `make check`.
 Individual targets are `make format`, `make format-check`, `make lint`, `make typecheck`, and `make test`.
+The test target runs three named suites; run `make test-unit`, `make test-integration`, or `make test-e2e`
+when working on one layer.
 
 Tests use [`mini.test`](https://github.com/nvim-mini/mini.test), which is downloaded into the ignored `deps/`
 directory by the first `make test`. It is a development-only dependency and is not loaded by the plugin at runtime.
 
-Test files follow `tests/test_<area>.lua`, where `<area>` names the module or integration under test (for example,
-`test_offsets.lua`, `test_store.lua`, or `test_nvim_lint.lua`). Within a file, nest cases under the public function
-name such as `to_position()` or `attach()`. Shared setup belongs in `tests/helpers.lua`.
+Tests are deliberately separated by the boundary they exercise:
+
+- `tests/unit/` contains deterministic functions and protocol helpers. These tests do not start the plugin's LSP
+  client or depend on a tool integration.
+- `tests/integration/` exercises stateful modules, adapters, and nvim-lint bridges. Adapter tests use small inline
+  tool output; bridge tests use a mocked nvim-lint module.
+- `tests/e2e/` uses the public API, a real in-process LSP request, and Neovim's edit application. Recorded tool
+  fixtures live here when the assertion is the complete user journey.
+
+Within a file, group cases by behavior (`matching by kind`, `batch freshness`, or `integration.attach()`) and name
+each case as a sentence describing the invariant. Shared pure helpers belong in `tests/helpers.lua`; buffer,
+fixture, and lifecycle helpers belong in `tests/support/`.
 
 ## Fixtures
 

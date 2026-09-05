@@ -1,54 +1,13 @@
 local MiniTest = require('mini.test')
 local adapter = require('lint_actions.adapters.sarif')
-local helpers = require('tests.helpers')
+local helpers = require('tests.support.nvim')
 
 local eq = helpers.eq
-local T = MiniTest.new_set()
+local T = helpers.new_set()
 
-local function region(start_line, start_column, end_line, end_column)
-  return {
-    startLine = start_line,
-    startColumn = start_column,
-    endLine = end_line,
-    endColumn = end_column,
-  }
-end
-
-local function replacement(deleted_region, text)
-  local value = { deletedRegion = deleted_region }
-  if text ~= nil then
-    value.insertedContent = { text = text }
-  end
-  return value
-end
-
-local function change(uri, replacements)
-  return {
-    artifactLocation = type(uri) == 'table' and uri or { uri = uri },
-    replacements = replacements,
-  }
-end
-
-local function fix(description, changes)
-  return {
-    description = description and { text = description } or nil,
-    artifactChanges = changes,
-  }
-end
-
-local function location(uri, value)
-  return {
-    physicalLocation = {
-      artifactLocation = type(uri) == 'table' and uri or { uri = uri },
-      region = value,
-    },
-  }
-end
-
-local function output(run)
-  run.tool = run.tool or { driver = { name = 'example' } }
-  return vim.json.encode({ version = '2.1.0', runs = { run } })
-end
+local sarif = require('tests.support.sarif')
+local region, replacement, change = sarif.region, sarif.replacement, sarif.change
+local fix, location, output = sarif.fix, sarif.location, sarif.output
 
 local function parse(bufnr, run)
   return adapter.parse({ output = output(run), bufnr = bufnr, cwd = vim.fn.getcwd() })
@@ -57,90 +16,6 @@ end
 local function apply(action)
   for uri, edits in pairs(action.edit.changes) do
     vim.lsp.util.apply_text_edits(edits, vim.uri_to_bufnr(uri), 'utf-8')
-  end
-end
-
-local function ingest(bufnr, run)
-  require('lint_actions').ingest({
-    adapter = adapter,
-    output = output(run),
-    bufnr = bufnr,
-    cwd = vim.fn.getcwd(),
-  })
-  eq(
-    vim.wait(1000, function()
-      local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'lint-actions' })[1]
-      return client ~= nil and client.initialized == true
-    end),
-    true
-  )
-end
-
-T['action pipeline'] = MiniTest.new_set({
-  hooks = { pre_case = require('lint_actions.store')._reset, post_case = require('lint_actions.store')._reset },
-})
-
-T['action pipeline']['ingests, filters, sorts, and applies Unicode alternatives'] = function()
-  local name = 'sarif-pipeline-unicode.lua'
-  local bufnr = helpers.new_buffer(name, { '-- example', '😀 bad' })
-  local edit_region = region(2, 4, 2, 7)
-  ingest(bufnr, {
-    columnKind = 'utf16CodeUnits',
-    results = {
-      {
-        locations = { location(name, edit_region) },
-        fixes = {
-          fix('Use good.', { change(name, { replacement(edit_region, 'good') }) }),
-          fix('Use best.', { change(name, { replacement(edit_region, 'best') }) }),
-        },
-      },
-    },
-  })
-  local range = helpers.range(1, 0, 1, 0)
-  eq(helpers.request(bufnr, helpers.range(0, 0, 0, 0)), {})
-  eq(helpers.request(bufnr, range, { 'refactor' }), {})
-  local found = helpers.request(bufnr, range, { 'quickfix' })
-  eq(
-    vim.tbl_map(function(action)
-      return action.title
-    end, found),
-    { 'Use best.', 'Use good.' }
-  )
-  local changes = found[1].edit.documentChanges
-  eq(found[1].edit.changes, nil)
-  eq(changes[1].textDocument.version, vim.api.nvim_buf_get_changedtick(bufnr))
-  vim.lsp.util.apply_workspace_edit(found[1].edit, 'utf-8')
-  eq(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), { '-- example', '😀 best' })
-  eq(helpers.request(bufnr, range), {})
-end
-
-for _, update_primary in ipairs({ false, true }) do
-  local target = update_primary and 'both artifacts' or 'only a secondary artifact'
-  T['action pipeline']['ingests and applies a fix targeting ' .. target] = function()
-    local primary_name, secondary_name = 'sarif-pipeline-primary.lua', 'sarif-pipeline-secondary.lua'
-    local primary = helpers.new_buffer(primary_name, { 'one' })
-    local secondary = helpers.new_buffer(secondary_name, { 'two' })
-    local edit_region = region(1, 1, 1, 4)
-    local changes = { change(secondary_name, { replacement(edit_region, 'TWO') }) }
-    if update_primary then
-      table.insert(changes, change(primary_name, { replacement(edit_region, 'ONE') }))
-    end
-    ingest(primary, {
-      columnKind = 'unicodeCodePoints',
-      results = {
-        {
-          locations = { location(primary_name, edit_region) },
-          fixes = { fix('Update artifacts.', changes) },
-        },
-      },
-    })
-    local found = helpers.request(primary, helpers.range(0, 0, 0, 0))
-    eq(#found, 1)
-    eq(found[1].edit.changes, nil)
-    eq(#found[1].edit.documentChanges, update_primary and 2 or 1)
-    vim.lsp.util.apply_workspace_edit(found[1].edit, 'utf-8')
-    eq(vim.api.nvim_buf_get_lines(primary, 0, -1, false), { update_primary and 'ONE' or 'one' })
-    eq(vim.api.nvim_buf_get_lines(secondary, 0, -1, false), { 'TWO' })
   end
 end
 
