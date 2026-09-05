@@ -64,6 +64,11 @@ Every usable `SuggestedFix` for the current file becomes a `quickfix` action.
 The title uses the suggested-fix message when there is one, and names the
 linter that found the problem.
 
+The entire suggestion is skipped if any replacement has invalid Base64 or
+an invalid byte range. Offsets must be integers within the buffer, with the end
+at or after the start. Valid alternative suggestions remain available. Empty
+and null replacement text represent deletions.
+
 Edits go out as versioned workspace edits. They go stale as soon as the buffer
 changes, and pickers that show diffs can preview them.
 

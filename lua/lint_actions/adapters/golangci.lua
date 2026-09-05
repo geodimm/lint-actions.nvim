@@ -1,3 +1,4 @@
+local compat = require('lint_actions.compat')
 local offsets = require('lint_actions.offsets')
 local paths = require('lint_actions.paths')
 
@@ -47,28 +48,46 @@ local function issue_range(issue, text, ranges)
 end
 
 local function decode(value)
-  if type(value) ~= 'string' then
+  -- A nil Go []byte is encoded as JSON null and represents a deletion.
+  if compat.isnil(value) then
     return ''
   end
+  if type(value) ~= 'string' then
+    return nil
+  end
   local ok, decoded = pcall(vim.base64.decode, value)
-  return ok and decoded or ''
+  return ok and decoded or nil
+end
+
+local function valid_offset(value, text)
+  return type(value) == 'number' and value == math.floor(value) and value >= 0 and value <= #text
 end
 
 local function text_edits(fix, text)
   local edits = {}
-  if type(fix) ~= 'table' or type(fix.TextEdits) ~= 'table' then
+  if type(fix) ~= 'table' or type(fix.TextEdits) ~= 'table' or not vim.islist(fix.TextEdits) then
     return edits
   end
   for _, edit in ipairs(fix.TextEdits) do
-    if type(edit) == 'table' and type(edit.Pos) == 'number' and type(edit.End) == 'number' then
-      table.insert(edits, {
-        range = {
-          start = offsets.to_position(text, edit.Pos, 'utf-8'),
-          ['end'] = offsets.to_position(text, edit.End, 'utf-8'),
-        },
-        newText = decode(edit.NewText),
-      })
+    if
+      type(edit) ~= 'table'
+      or not valid_offset(edit.Pos, text)
+      or not valid_offset(edit.End, text)
+      or edit.End < edit.Pos
+    then
+      return {}
     end
+    local new_text = decode(edit.NewText)
+    if new_text == nil then
+      return {}
+    end
+    table.insert(edits, {
+      range = {
+        start = offsets.to_position(text, edit.Pos, 'utf-8'),
+        ['end'] = offsets.to_position(text, edit.End, 'utf-8'),
+      },
+      newText = new_text,
+    })
   end
   return edits
 end

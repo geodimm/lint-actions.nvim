@@ -145,6 +145,77 @@ T['parse()']['handles representative golangci-lint v2 output'] = function()
   eq(by_title['"404" can be replaced by http.StatusNotFound [usestdlibvars]'][1].newText, 'http.StatusNotFound')
 end
 
+local malformed_edits = {
+  { name = 'invalid Base64', edit = { Pos = 0, End = 1, NewText = '!!!' } },
+  { name = 'non-string replacement', edit = { Pos = 0, End = 1, NewText = 42 } },
+  { name = 'non-table edit', edit = false },
+  { name = 'missing start', edit = { End = 1, NewText = '' } },
+  { name = 'negative start', edit = { Pos = -1, End = 1, NewText = '' } },
+  { name = 'fractional start', edit = { Pos = 0.5, End = 1, NewText = '' } },
+  { name = 'fractional end', edit = { Pos = 0, End = 1.5, NewText = '' } },
+  { name = 'reversed range', edit = { Pos = 2, End = 1, NewText = '' } },
+  { name = 'end outside the buffer', edit = { Pos = 0, End = 99, NewText = '' } },
+}
+
+for _, case in ipairs(malformed_edits) do
+  T['parse()']['rejects an entire suggestion containing ' .. case.name] = function()
+    local bufnr = helpers.new_buffer('golangci-invalid-fix.go', { 'abc' })
+    local output = vim.json.encode({
+      Issues = {
+        {
+          Pos = { Filename = vim.api.nvim_buf_get_name(bufnr) },
+          SuggestedFixes = {
+            {
+              Message = 'Broken suggestion',
+              TextEdits = {
+                { Pos = 3, End = 3, NewText = vim.base64.encode('!') },
+                case.edit,
+              },
+            },
+            {
+              Message = 'Valid alternative',
+              TextEdits = {
+                { Pos = 0, End = 3, NewText = vim.base64.encode('xyz') },
+              },
+            },
+          },
+        },
+      },
+    })
+    local parsed = adapter.parse({ bufnr = bufnr, output = output, cwd = vim.fn.getcwd() })
+    eq(#parsed, 1)
+    eq(parsed[1].action.title, 'Valid alternative')
+    vim.lsp.util.apply_text_edits(parsed[1].action.edit, bufnr, 'utf-8')
+    eq(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), { 'xyz' })
+  end
+end
+
+T['parse()']['preserves empty and null deletions and insertions at EOF'] = function()
+  local bufnr = helpers.new_buffer('golangci-valid-boundaries.go', { 'abc' })
+  vim.bo[bufnr].endofline = false
+  local output = vim.json.encode({
+    Issues = {
+      {
+        Pos = { Filename = vim.api.nvim_buf_get_name(bufnr) },
+        SuggestedFixes = {
+          {
+            TextEdits = {
+              { Pos = 0, End = 1, NewText = '' },
+              { Pos = 1, End = 2, NewText = vim.NIL },
+              { Pos = 3, End = 3, NewText = vim.base64.encode('!') },
+            },
+          },
+        },
+      },
+    },
+  })
+  local parsed = adapter.parse({ bufnr = bufnr, output = output, cwd = vim.fn.getcwd() })
+  eq(#parsed, 1)
+  eq(#parsed[1].action.edit, 3)
+  vim.lsp.util.apply_text_edits(parsed[1].action.edit, bufnr, 'utf-8')
+  eq(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), { 'c!' })
+end
+
 T['integration.attach()'] = MiniTest.new_set()
 
 T['integration.attach()']['uses the default nvim-lint linter and bundled adapter'] = function()
