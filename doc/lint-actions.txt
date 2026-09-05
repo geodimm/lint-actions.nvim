@@ -301,9 +301,9 @@ integrations only and rejects unknown names. Call |lint_actions.publish()| or
     synchronous and quick. A slow provider delays the menu. Publish fixes
     produced by an external process instead.
 
-    If `provide` raises an error, it is reported with |vim.notify()| and that
-    provider is skipped. Other providers and published actions still answer
-    the same request.
+    Errors while running `provide` or validating, normalizing, or filtering its
+    results are reported with |vim.notify()|. That provider's entire result is
+    skipped. Other providers and published actions still answer the request.
 
     Registering a provider attaches the in-process client to the ordinary
     file buffers it applies to (`buftype` empty), including ones already

@@ -44,21 +44,24 @@ end
 ---Run one provider, keeping its failures out of the rest of the request.
 ---@param provider LintActions.Provider
 ---@param context LintActions.ProviderContext
----@return LintActions.NormalizedItem[]? items
+---@return lsp.CodeAction[]? actions
 ---@return string? err
 local function collect(provider, context)
-  local ok, produced = pcall(provider.provide, context)
+  local ok, actions = pcall(function()
+    local candidates = provider.provide(context) or {}
+    items.validate(candidates)
+    local matched = {}
+    for _, item in ipairs(items.normalize(candidates, context.bufnr)) do
+      if items.matches(item, context.range, context.only) then
+        table.insert(matched, item.action)
+      end
+    end
+    return matched
+  end)
   if not ok then
-    return nil, tostring(produced)
+    return nil, tostring(actions)
   end
-
-  ---@type LintActions.Item[]
-  local candidates = produced or {}
-  local valid, invalid = pcall(items.validate, candidates)
-  if not valid then
-    return nil, tostring(invalid)
-  end
-  return items.normalize(candidates, context.bufnr)
+  return actions
 end
 
 ---@param bufnr integer
@@ -123,11 +126,7 @@ function M.actions(bufnr, range, only)
       if not produced then
         report(source, err or 'provider failed')
       else
-        for _, item in ipairs(produced) do
-          if items.matches(item, range, only) then
-            table.insert(actions, item.action)
-          end
-        end
+        vim.list_extend(actions, produced)
       end
     end
   end

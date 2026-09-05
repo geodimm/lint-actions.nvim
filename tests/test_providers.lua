@@ -212,6 +212,49 @@ T['register()']['replaces a provider registered under the same source'] = functi
   eq(titles(helpers.request(bufnr, helpers.range(0, 0, 0, 0))), { 'Second registration' })
 end
 
+for _, field in ipairs({ 'edit', 'kind' }) do
+  T['register()']['isolates malformed ' .. field .. ' fields throughout action processing'] = function()
+    local bufnr = helpers.new_buffer('provider-malformed-' .. field .. '.txt', { 'text' })
+    local notifications = {}
+    local notify = vim.notify
+    MiniTest.finally(function()
+      vim.notify = notify
+    end)
+    ---@diagnostic disable-next-line: duplicate-set-field
+    vim.notify = function(message)
+      table.insert(notifications, message)
+    end
+
+    lint_actions.register({
+      source = 'a-malformed',
+      provide = function()
+        local malformed = item('Malformed action')
+        rawset(malformed.action, field, field == 'edit' and 'invalid' or 42)
+        return { item('Partial result'), malformed }
+      end,
+    })
+    lint_actions.register({
+      source = 'z-healthy',
+      provide = function()
+        return { item('Healthy result') }
+      end,
+    })
+    lint_actions.publish({ bufnr = bufnr, source = 'published', items = { item('Published result') } })
+    eq(wait_for_client(bufnr), true)
+
+    local result = helpers.request(bufnr, helpers.range(0, 0, 0, 0), { 'quickfix' })
+    eq(titles(result), { 'Healthy result', 'Published result' })
+    eq(
+      vim.wait(200, function()
+        return #notifications > 0
+      end),
+      true
+    )
+    eq(#notifications, 1)
+    eq(notifications[1]:find('lint-actions: provider a-malformed:', 1, true) ~= nil, true)
+  end
+end
+
 T['register()']['attaches to files opened after registration'] = function()
   local path = vim.fs.joinpath(vim.fn.tempname() .. '-provider.txt')
   vim.fn.writefile({ 'alpha' }, path)
