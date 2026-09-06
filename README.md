@@ -101,6 +101,10 @@ They are also available in Neovim as `:help lint-actions-golangci`,
 `:help lint-actions-markdownlint`, `:help lint-actions-shellcheck`, and
 `:help lint-actions-sarif`.
 
+The golangci-lint integration defers loading nvim-lint's linter definition
+until its first run. This keeps golangci-lint's version and Go module discovery
+out of Neovim startup.
+
 The nvim-lint bridge also supports custom adapters. It preserves the
 diagnostics from any function-based parser and passes the same raw output to
 the adapter. If the adapter requires another output format, update the linter's

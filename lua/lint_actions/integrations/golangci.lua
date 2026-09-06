@@ -7,6 +7,7 @@ local M = {}
 ---@class LintActions.GolangciOptions
 ---@field linter? string|LintActions.NvimLintLinter Defaults to `golangcilint`.
 ---@field source? string Overrides the adapter's source.
+---@field defer? boolean Defers loading a named linter until its first run. Defaults to true.
 
 ---Publish golangci-lint SuggestedFixes from nvim-lint's existing output.
 ---Calling this function more than once is safe.
@@ -25,11 +26,17 @@ function M.attach(options)
   if source == nil then
     source = adapter.source
   end
+  local defer = options.defer
+  if defer == nil then
+    defer = true
+  end
+  items.expect(defer, 'boolean', 'options.defer')
 
   return nvim_lint.attach({
     linter = linter,
     adapter = adapter,
     source = source,
+    defer = defer,
   })
 end
 
