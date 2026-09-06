@@ -29,6 +29,7 @@ local attachments = {}
 ---@field adapter LintActions.Adapter
 ---@field source? string Overrides the adapter's source.
 ---@field configure? LintActions.NvimLintConfigure Prepares the resolved linter before its parser is wrapped.
+---@field defer? boolean Defers loading a named built-in linter until its first run.
 
 ---@class LintActions.NvimLintRun
 ---@field bufnr integer
@@ -131,6 +132,68 @@ local function attach(linter, adapter, source, configure)
   end
 end
 
+---@param lint table
+---@param name string
+---@param linter LintActions.NvimLintEntry
+---@param adapter LintActions.Adapter
+---@param source string
+---@param configure? LintActions.NvimLintConfigure
+local function attach_entry(lint, name, linter, adapter, source, configure)
+  if type(linter) == 'function' then
+    if wrapped_factories[linter] then
+      return
+    end
+    local factory = function()
+      local definition = linter()
+      items.expect(definition, 'table', 'linter definition', 0)
+      attach(definition, adapter, source, configure)
+      return definition
+    end
+    wrapped_factories[factory] = true
+    lint.linters[name] = factory
+  elseif type(linter) == 'table' then
+    attach(linter, adapter, source, configure)
+  else
+    error(('unknown nvim-lint linter: %s'):format(name))
+  end
+end
+
+---@param lint table
+---@param name string
+---@param adapter LintActions.Adapter
+---@param source string
+---@param configure? LintActions.NvimLintConfigure
+local function attach_deferred(lint, name, adapter, source, configure)
+  -- User-defined linters are stored directly. Wrapping one cannot trigger
+  -- nvim-lint's lazy module loader, so there is no work to defer.
+  local existing = rawget(lint.linters, name)
+  if existing ~= nil then
+    attach_entry(lint, name, existing, adapter, source, configure)
+    return
+  end
+
+  local loaded
+  local factory = function()
+    if loaded == nil then
+      local ok, linter = pcall(require, 'lint.linters.' .. name)
+      if not ok then
+        error(('unknown nvim-lint linter: %s'):format(name), 0)
+      end
+      loaded = linter
+    end
+
+    local definition = loaded
+    if type(definition) == 'function' then
+      definition = definition()
+    end
+    items.expect(definition, 'table', 'linter definition', 0)
+    attach(definition, adapter, source, configure)
+    return definition
+  end
+  wrapped_factories[factory] = true
+  lint.linters[name] = factory
+end
+
 ---Wrap an nvim-lint parser and publish fixes from the same process output.
 ---The parser's diagnostics and return value are preserved.
 ---@param options LintActions.NvimLintOptions
@@ -141,6 +204,9 @@ function M.attach(options)
   if options.configure ~= nil then
     items.expect(options.configure, 'function', 'options.configure')
   end
+  if options.defer ~= nil then
+    items.expect(options.defer, 'boolean', 'options.defer')
+  end
 
   local source = options.source
   if source == nil then
@@ -150,23 +216,10 @@ function M.attach(options)
   local linter_option = options.linter
   if type(linter_option) == 'string' then
     local lint = require('lint')
-    local linter = lint.linters[linter_option]
-    if type(linter) == 'function' then
-      if wrapped_factories[linter] then
-        return
-      end
-      local factory = function()
-        local definition = linter()
-        items.expect(definition, 'table', 'linter definition', 0)
-        attach(definition, options.adapter, source, options.configure)
-        return definition
-      end
-      wrapped_factories[factory] = true
-      lint.linters[linter_option] = factory
-    elseif type(linter) == 'table' then
-      attach(linter, options.adapter, source, options.configure)
+    if options.defer then
+      attach_deferred(lint, linter_option, options.adapter, source, options.configure)
     else
-      error(('unknown nvim-lint linter: %s'):format(linter_option))
+      attach_entry(lint, linter_option, lint.linters[linter_option], options.adapter, source, options.configure)
     end
   elseif type(linter_option) == 'table' then
     attach(linter_option, options.adapter, source, options.configure)

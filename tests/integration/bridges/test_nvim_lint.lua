@@ -85,6 +85,46 @@ T['attach()']['resolves and wraps factory linters by name once'] = function()
   eq(definition.parser('', -1, vim.fn.getcwd()), diagnostics)
 end
 
+T['attach()']['defers loading a named built-in linter until its factory runs'] = function()
+  local module = 'lint.linters.lint_actions_deferred_test'
+  local previous_preload = package.preload[module]
+  local previous_loaded = package.loaded[module]
+  package.loaded[module] = nil
+
+  local loads = 0
+  package.preload[module] = function()
+    loads = loads + 1
+    return {
+      parser = function()
+        return {}
+      end,
+    }
+  end
+  MiniTest.finally(function()
+    package.preload[module] = previous_preload
+    package.loaded[module] = previous_loaded
+  end)
+
+  local lint = helpers.mock_nvim_lint(setmetatable({}, {
+    __index = function(_, name)
+      return require('lint.linters.' .. name)
+    end,
+  }))
+  integration.attach({
+    linter = 'lint_actions_deferred_test',
+    adapter = adapter(),
+    defer = true,
+  })
+
+  eq(loads, 0)
+  local factory = rawget(lint.linters, 'lint_actions_deferred_test')
+  eq(type(factory), 'function')
+
+  local definition = factory()
+  eq(loads, 1)
+  eq(definition._lint_actions_attached, 'tool')
+end
+
 T['attach()']['does not ingest an invalid buffer'] = function()
   helpers.mock_nvim_lint({})
   local adapter_calls = 0
@@ -179,6 +219,9 @@ T['attach()']['rejects invalid options, adapters, and linter values'] = function
   end)
   expect_error('options.configure', function()
     helpers.call(integration.attach, { linter = {}, adapter = adapter(), configure = 'invalid' })
+  end)
+  expect_error('options.defer', function()
+    helpers.call(integration.attach, { linter = {}, adapter = adapter(), defer = 'invalid' })
   end)
   expect_error('options.linter must be a linter name or table', function()
     helpers.call(integration.attach, { linter = false, adapter = adapter() })

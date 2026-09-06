@@ -32,6 +32,10 @@ as you normally would: >lua
 <
 Trigger nvim-lint from a command, a mapping, or an autocmd.
 
+The default named linter is loaded lazily. Enabling this integration therefore
+does not run nvim-lint's golangci-lint version or Go module discovery during
+Neovim startup; those happen when golangci-lint first runs.
+
 Actions are only kept when the buffer is unmodified. golangci-lint reads the
 file from disk, so its fixes describe the saved file. Applying them to a
 buffer you have since edited would put the text in the wrong place.
@@ -55,6 +59,9 @@ under: >lua
 <
 `require('lint_actions.integrations.golangci').attach()` accepts the same
 options for direct use.
+
+Set `defer = false` to resolve a named linter immediately. Concrete linter
+definitions are always attached immediately because they are already loaded.
 
 To write an adapter for a different tool, see |lint-actions-nvim-lint|.
 

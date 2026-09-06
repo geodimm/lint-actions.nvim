@@ -104,10 +104,14 @@ an adapter: >lua
     adapter = require('my_adapter'),
     source = 'optional-source-override',
     configure = optional_function,
+    defer = false,
   })
 <
 `linter` takes a registered nvim-lint name or a linter definition. The adapter
-must have a `source` field and a `parse(context)` function.
+must have a `source` field and a `parse(context)` function. Set `defer = true`
+to avoid loading a named built-in linter until nvim-lint first runs it.
+User-defined linters already stored in `lint.linters` and concrete definitions
+are attached immediately.
 
 On its own, `attach()` does not touch the linter's command or arguments. Use
 `configure` for that.
