@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/geodimm/lint-actions.nvim/compare/v0.8.1...v0.8.2) (2026-09-06)
+
+
+### Performance Improvements
+
+* defer golangci-lint initialization ([#41](https://github.com/geodimm/lint-actions.nvim/issues/41)) ([8d37b4f](https://github.com/geodimm/lint-actions.nvim/commit/8d37b4f224fa13b1edfd8e40bdae778eb811e4d6))
+
 ## [0.8.1](https://github.com/geodimm/lint-actions.nvim/compare/v0.8.0...v0.8.1) (2026-09-05)
 
 
