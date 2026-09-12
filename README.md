@@ -482,20 +482,24 @@ This check does not report a missing nvim-lint installation.
 
 ## Development
 
+Install [Nix](https://nixos.org/download/) with flakes enabled, then enter the pinned development environment:
+
 ```sh
 git clone https://github.com/geodimm/lint-actions.nvim
 cd lint-actions.nvim
-make check
+nix develop
+just check
 ```
 
-`make check` runs formatting, the documentation check, Luacheck, LuaLS, and the three test suites.
-Run one at a time with `make format`, `make docs`, `make lint`, `make typecheck`, and `make test`.
+`just check` checks formatting, generated documentation, Luacheck, LuaLS, and the Busted tests.
+Run one at a time with `just fmt`, `just docs`, `just lint`, `just typecheck`, and `just test`.
+With direnv installed, `direnv allow` loads the same environment automatically.
 
 ## Contributing
 
 Issues and pull requests are welcome.
 
-[CONTRIBUTING.md](CONTRIBUTING.md) covers the toolchain, the test layers, the fixtures, and how the help files are generated.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the toolchain, the test layout, the fixtures, and how the help files are generated.
 [ARCHITECTURE.md](ARCHITECTURE.md) explains how the pieces fit together and how stale actions are kept out.
 
 ## License

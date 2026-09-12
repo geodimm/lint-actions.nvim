@@ -1,5 +1,3 @@
-local MiniTest = require('mini.test')
-
 local M = vim.tbl_extend('force', {}, require('tests.helpers'))
 
 function M.mock_nvim_lint(linters)
@@ -10,7 +8,7 @@ function M.mock_nvim_lint(linters)
       return { linter = definition, cancelled = false }
     end,
   }
-  MiniTest.finally(function()
+  M.on_cleanup(function()
     package.loaded.lint = previous
   end)
   return package.loaded.lint
@@ -22,7 +20,7 @@ function M.new_buffer(name, lines)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines or {})
   vim.bo[bufnr].modified = false
 
-  MiniTest.finally(function()
+  M.on_cleanup(function()
     if vim.api.nvim_buf_is_valid(bufnr) then
       vim.api.nvim_buf_delete(bufnr, { force = true })
     end
@@ -66,7 +64,7 @@ function M.fixture_buffer(name, file)
   local bufnr = vim.fn.bufadd(M.fixture_path(name, file))
   vim.fn.bufload(bufnr)
 
-  MiniTest.finally(function()
+  M.on_cleanup(function()
     if vim.api.nvim_buf_is_valid(bufnr) then
       vim.api.nvim_buf_delete(bufnr, { force = true })
     end
@@ -87,24 +85,26 @@ function M.batch(bufnr, source, title, range, kind)
 end
 
 ---Each stateful case owns its store, providers, buffers, and LSP clients.
+---Specs install this as both `before_each` and `after_each`.
 function M.reset()
+  local cleanup_ok, cleanup_error = pcall(M.cleanup)
   require('lint_actions.store')._reset()
   require('lint_actions.providers')._reset()
   require('lint_actions.integrations.nvim_lint')._reset()
-  local clients = vim.lsp.get_clients({ name = 'lint-actions' })
+  local clients = vim.lsp.get_clients({ name = 'lint-actions', _uninitialized = true })
   for _, client in ipairs(clients) do
     client:stop(true)
   end
-  assert(
-    vim.wait(1000, function()
-      return #vim.lsp.get_clients({ name = 'lint-actions' }) == 0
-    end),
-    'lint-actions client did not stop'
-  )
-end
-
-function M.new_set()
-  return MiniTest.new_set({ hooks = { pre_case = M.reset, post_case = M.reset } })
+  vim.wait(1000, function()
+    return #vim.lsp.get_clients({ name = 'lint-actions', _uninitialized = true }) == 0
+  end)
+  local remaining = vim.lsp.get_clients({ name = 'lint-actions', _uninitialized = true })
+  if #remaining > 0 then
+    error('lint-actions clients did not stop: ' .. vim.inspect(remaining), 0)
+  end
+  if not cleanup_ok then
+    error(cleanup_error, 0)
+  end
 end
 
 return M
