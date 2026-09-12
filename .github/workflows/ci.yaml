@@ -72,6 +72,16 @@ jobs:
       - name: Run LuaLS
         run: make typecheck
 
+      - name: Install Pandoc
+        run: |
+          version="$(make -s pandoc-version)"
+          curl -fsSL "https://github.com/jgm/pandoc/releases/download/$version/pandoc-$version-linux-amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/pandoc-$version/bin" >> "$GITHUB_PATH"
+
+      - name: Check generated docs
+        run: make docs-check
+
   test:
     name: Test Neovim ${{ matrix.neovim }}
     runs-on: ubuntu-latest

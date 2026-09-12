@@ -1,51 +1,52 @@
-# Development
+# Contributing
 
-The local toolchain is Neovim 0.11 or newer, StyLua, LuaLS, Luacheck, and Make. On macOS:
+Issues and pull requests are welcome. Open an issue first for anything that changes the public API or adds a
+bundled integration. [ARCHITECTURE.md](ARCHITECTURE.md) explains how the pieces fit together.
+
+Use Conventional Commits: `fix:` releases a patch, `feat:` a minor, and `!` or a `BREAKING CHANGE` footer a
+major. Release Please owns `CHANGELOG.md` and `version.txt`.
+
+## Setup
+
+Neovim 0.11 or newer, StyLua, LuaLS, Luacheck, Pandoc, and Make. On macOS:
 
 ```sh
-brew install neovim stylua lua-language-server luajit luarocks
+brew install neovim stylua lua-language-server luajit luarocks pandoc
 LUAJIT_PREFIX="$(brew --prefix luajit)"
 luarocks --lua-version=5.1 --lua-dir="$LUAJIT_PREFIX" --local install luacheck 1.2.0-1
 eval "$(luarocks --lua-version=5.1 --lua-dir="$LUAJIT_PREFIX" --local path)"
 ```
 
-The `lint` and `typecheck` Make targets load this LuaRocks environment automatically when Homebrew and LuaRocks
-are available. Linux CI skips that optional setup and uses its installed standalone tools.
+`make lint` and `make typecheck` load that LuaRocks environment themselves. `mini.test` and panvimdoc download
+into the ignored `deps/` on first use.
 
-Run the complete check with `make check`.
-Individual targets are `make format`, `make format-check`, `make lint`, `make typecheck`, and `make test`.
-The test target runs three named suites; run `make test-unit`, `make test-integration`, or `make test-e2e`
-when working on one layer.
+## Checks
 
-Tests use [`mini.test`](https://github.com/nvim-mini/mini.test), which is downloaded into the ignored `deps/`
-directory by the first `make test`. It is a development-only dependency and is not loaded by the plugin at runtime.
+```sh
+make check
+```
 
-Tests are deliberately separated by the boundary they exercise:
+Formatting, docs, Luacheck, LuaLS, then the tests. Each is also its own target, and `make test-unit`,
+`make test-integration`, and `make test-e2e` run a single suite.
 
-- `tests/unit/` contains deterministic functions and protocol helpers. These tests do not start the plugin's LSP
-  client or depend on a tool integration.
-- `tests/integration/` exercises stateful modules, adapters, and nvim-lint bridges. Adapter tests use small inline
-  tool output; bridge tests use a mocked nvim-lint module.
-- `tests/e2e/` uses the public API, a real in-process LSP request, and Neovim's edit application. Recorded tool
-  fixtures live here when the assertion is the complete user journey.
+## Tests
 
-Within a file, group cases by behavior (`matching by kind`, `batch freshness`, or `integration.attach()`) and name
-each case as a sentence describing the invariant. Shared pure helpers belong in `tests/helpers.lua`; buffer,
-fixture, and lifecycle helpers belong in `tests/support/`.
+- `tests/unit/` — pure functions and protocol helpers. No LSP client, no tool integration.
+- `tests/integration/` — stateful modules, adapters, and nvim-lint bridges, against inline output and a mocked
+  nvim-lint.
+- `tests/e2e/` — the public API through a real LSP request and Neovim's edit application.
+
+Name each case as a sentence describing the invariant. Pure helpers go in `tests/helpers.lua`, buffer and
+lifecycle helpers in `tests/support/`.
 
 ## Fixtures
 
-Each bundled integration has a directory under `tests/fixtures/<tool>/` holding a small source file
-(`playground.<ext>`) and the tool's real output for it (`output.json`). A fixture test loads the source file into a
-buffer, runs the captured output through the adapter, and applies the resulting edits. Positions in tool output are
-byte offsets or line and column pairs into a specific file. A fixture verifies that the adapter places edits correctly
-in the exact input processed by the tool. Inline output is sufficient for parsing edge cases and malformed input;
-position tests should use real fixture output.
+`tests/fixtures/<tool>/` pairs a real source file with the tool's real output for it, so adapters are tested
+against the exact bytes the tool saw. Inline output is fine for parsing edge cases; anything position-sensitive
+needs a fixture. Where the adapter offers a whole-file action, `fixed.<ext>` is the source after the tool fixes
+it, which pins the adapter to the tool's own ordering and overlap rules.
 
-Where the adapter offers a whole-file action, `fixed.<ext>` contains the source after the tool applies its own fixes.
-Asserting against that file pins the adapter to the tool's ordering and overlap rules.
-
-Regenerate a fixture by running the tool inside its directory, so the paths it reports stay relative:
+Regenerate from inside the fixture directory, so reported paths stay relative:
 
 ```sh
 cd tests/fixtures/shellcheck
@@ -60,30 +61,36 @@ cd tests/fixtures/golangci
 golangci-lint run --output.json.path stdout | head -n 1
 ```
 
-All three linters exit non-zero when they report findings; this is expected during fixture generation. markdownlint
-writes its JSON to stderr, while shellcheck emits JSON on one line. The commands above reformat that output and
-reproduce the committed files byte for byte.
+All three exit non-zero when they report findings. The golangci-lint output needs hand-trimming to `Issues`,
+keeping only `FromLinter`, `Text`, `Pos`, and `SuggestedFixes`.
 
-The golangci-lint fixture requires manual cleanup. The command prints a summary line after the JSON, and each issue
-contains fields the adapter never reads. The committed `output.json` therefore keeps only `Issues` and, within each
-issue, `FromLinter`, `Text`, `Pos`, and `SuggestedFixes`, laid out by hand for readability.
-`tests/fixtures/golangci/.golangci.yml` pins the enabled linters so the findings do not depend on a personal config
-found further up the tree.
+Fixtures are exempt from `.editorconfig`. Never let an editor add a final newline, trim trailing whitespace, or
+reformat them: the captured offsets describe those bytes exactly.
 
-Fixtures are exempted from `.editorconfig` normalisation. Do not let an editor add a final newline, trim trailing
-whitespace, or reformat these files: `playground.md` deliberately ends without a newline and carries trailing spaces,
-and the captured offsets describe the bytes exactly as they are.
+## Documentation
 
-## CI
+`doc/` is generated. Never edit it by hand.
 
-To exercise the pull-request workflow locally, start Docker and install [`act`](https://github.com/nektos/act):
+| Source | Help file |
+| --- | --- |
+| `README.md` | `doc/lint-actions.txt` |
+| `docs/<tool>.md` | `doc/lint-actions-<tool>.txt` |
 
-```sh
-brew install act
-act pull_request -W .github/workflows/ci.yaml \
-  -s GITHUB_TOKEN="$(gh auth token)"
-```
+`make docs` regenerates them with [panvimdoc](https://github.com/kdheepak/panvimdoc) and rebuilds `doc/tags`.
+Commit the result alongside the Markdown change; CI runs `make docs-check`. Pandoc is pinned in the `Makefile`
+because panvimdoc's output tracks its version.
 
-Use Conventional Commit prefixes for changes that should be released.
-`fix:` produces a patch release, `feat:` a minor release, and a `!` or `BREAKING CHANGE` footer a major release.
-After CI passes on `main`, Release Please opens or updates a release PR; merging it creates the SemVer tag and GitHub release.
+`make docs` fails with a specific message on a heading too long for its tag, a duplicate tag, or a dangling
+cross-reference. The conventions it cannot check for you:
+
+- One sentence per line, and a blank line between list items. Tight lists come out as a single long line, and
+  numbered lists get no hanging indent either way, so use bullets.
+
+- No emoji, and no table wider than two short columns. Both get mangled.
+
+- Link within a document as `[Providers](#providers)`, where the text is the target heading. Link across
+  documents as `` `:h lint-actions-sarif.txt` ``.
+
+- `##### name({opts})` is what gives an API entry its bare `*name()*` tag.
+
+- GitHub-only content goes between `<!-- panvimdoc-ignore-start -->` and `<!-- panvimdoc-ignore-end -->`.
