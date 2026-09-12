@@ -1,0 +1,91 @@
+<!-- panvimdoc-ignore-start -->
+
+# shellcheck with nvim-lint
+
+<!-- panvimdoc-ignore-end -->
+
+shellcheck attaches a `fix` to many of its findings, listing the exact text replacements that resolve it.
+This integration turns those into Neovim code actions.
+It reads output nvim-lint has already collected, so shellcheck does not run twice.
+
+## Requirements
+
+- Neovim 0.11 or newer.
+
+- [nvim-lint](https://github.com/mfussenegger/nvim-lint).
+
+- [shellcheck](https://github.com/koalaman/shellcheck).
+
+Fix data only appears in shellcheck's `json1` output.
+nvim-lint's built-in `shellcheck` linter already runs `--format json1`, so no additional configuration is required.
+If you replaced those arguments with another format, the integration finds no fixes, and nvim-lint's own parser stops reporting diagnostics too.
+
+## Configuration
+
+Configure nvim-lint first, then enable the integration and trigger the linter as you normally would:
+
+```lua
+local lint = require('lint')
+lint.linters_by_ft.sh = { 'shellcheck' }
+
+require('lint_actions').setup({
+  integrations = {
+    nvim_lint = {
+      shellcheck = true,
+    },
+  },
+})
+```
+
+Trigger nvim-lint from a command, a mapping, or an autocmd.
+
+Actions are only kept when the buffer is unmodified.
+A lint run started while the buffer is modified still updates diagnostics, but its fixes are dropped, because they cannot be matched reliably against the current buffer.
+
+## Advanced configuration
+
+The default linter name is `shellcheck`.
+You can point the integration at a different name or at a linter definition, and change the source it publishes under:
+
+```lua
+require('lint_actions').setup({
+  integrations = {
+    nvim_lint = {
+      shellcheck = {
+        linter = 'my_shellcheck',
+        source = 'my-shellcheck',
+      },
+    },
+  },
+})
+```
+
+`require('lint_actions.integrations.shellcheck').attach()` accepts the same options for direct use.
+
+To write an adapter for a different tool, see `:h lint-actions-nvim-lint`.
+
+## Actions
+
+Each finding that carries a fix gets its own `quickfix` action:
+
+```text
+Fix SC2086: Double quote to prevent globbing and word splitting.
+```
+
+There is also one whole-file action, with the kind `source.fixAll.shellcheck`:
+
+```text
+Fix all shellcheck issues
+```
+
+That whole-file edit produces the same text as `shellcheck --format=diff`: it follows shellcheck's precedence ordering and drops fixes that overlap an earlier fix.
+Findings with no fix still appear as diagnostics but have no action.
+
+A single fix can contain several replacements, such as the opening and closing quotes required by SC2086.
+They are applied together as one action.
+If any replacement cannot be placed in the buffer, the entire fix is skipped.
+
+## Sourced files
+
+shellcheck follows `source` directives and may report findings in other files.
+Only findings for the linted buffer become actions; the rest are ignored.

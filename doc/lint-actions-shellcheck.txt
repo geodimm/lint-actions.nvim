@@ -1,92 +1,116 @@
-*lint-actions-shellcheck.txt*           shellcheck actions through nvim-lint
+*lint-actions-shellcheck.txt*             shellcheck actions through nvim-lint
 
-===============================================================================
-SHELLCHECK                                            *lint-actions-shellcheck*
+==============================================================================
+Table of Contents                  *lint-actions-shellcheck-table-of-contents*
 
+1. Requirements                         |lint-actions-shellcheck-requirements|
+2. Configuration                       |lint-actions-shellcheck-configuration|
+3. Advanced configuration     |lint-actions-shellcheck-advanced-configuration|
+4. Actions                                   |lint-actions-shellcheck-actions|
+5. Sourced files                       |lint-actions-shellcheck-sourced-files|
 shellcheck attaches a `fix` to many of its findings, listing the exact text
 replacements that resolve it. This integration turns those into Neovim code
 actions. It reads output nvim-lint has already collected, so shellcheck does
 not run twice.
 
-REQUIREMENTS ~
+
+==============================================================================
+1. Requirements                         *lint-actions-shellcheck-requirements*
 
 - Neovim 0.11 or newer.
-- nvim-lint: https://github.com/mfussenegger/nvim-lint
-- shellcheck: https://github.com/koalaman/shellcheck
+- nvim-lint <https://github.com/mfussenegger/nvim-lint>.
+- shellcheck <https://github.com/koalaman/shellcheck>.
 
-Fix data only appears in shellcheck's `json1` output. nvim-lint's built-in
+Fix data only appears in shellcheck’s `json1` output. nvim-lint’s built-in
 `shellcheck` linter already runs `--format json1`, so no additional
-configuration is required. If you replaced those arguments with another
-format, the integration finds no fixes, and nvim-lint's own parser stops
-reporting diagnostics too.
+configuration is required. If you replaced those arguments with another format,
+the integration finds no fixes, and nvim-lint’s own parser stops reporting
+diagnostics too.
 
-CONFIGURATION ~
+
+==============================================================================
+2. Configuration                       *lint-actions-shellcheck-configuration*
 
 Configure nvim-lint first, then enable the integration and trigger the linter
-as you normally would: >lua
+as you normally would:
 
-  local lint = require('lint')
-  lint.linters_by_ft.sh = { 'shellcheck' }
+>lua
+    local lint = require('lint')
+    lint.linters_by_ft.sh = { 'shellcheck' }
 
-  require('lint_actions').setup({
-    integrations = {
-      nvim_lint = {
-        shellcheck = true,
+    require('lint_actions').setup({
+      integrations = {
+        nvim_lint = {
+          shellcheck = true,
+        },
       },
-    },
-  })
+    })
 <
+
 Trigger nvim-lint from a command, a mapping, or an autocmd.
 
 Actions are only kept when the buffer is unmodified. A lint run started while
 the buffer is modified still updates diagnostics, but its fixes are dropped,
 because they cannot be matched reliably against the current buffer.
 
-ADVANCED CONFIGURATION ~
+
+==============================================================================
+3. Advanced configuration     *lint-actions-shellcheck-advanced-configuration*
 
 The default linter name is `shellcheck`. You can point the integration at a
 different name or at a linter definition, and change the source it publishes
-under: >lua
+under:
 
-  require('lint_actions').setup({
-    integrations = {
-      nvim_lint = {
-        shellcheck = {
-          linter = 'my_shellcheck',
-          source = 'my-shellcheck',
+>lua
+    require('lint_actions').setup({
+      integrations = {
+        nvim_lint = {
+          shellcheck = {
+            linter = 'my_shellcheck',
+            source = 'my-shellcheck',
+          },
         },
       },
-    },
-  })
+    })
 <
+
 `require('lint_actions.integrations.shellcheck').attach()` accepts the same
 options for direct use.
 
 To write an adapter for a different tool, see |lint-actions-nvim-lint|.
 
-ACTIONS ~
 
-Each finding that carries a fix gets its own `quickfix` action: >text
+==============================================================================
+4. Actions                                   *lint-actions-shellcheck-actions*
 
-  Fix SC2086: Double quote to prevent globbing and word splitting.
+Each finding that carries a fix gets its own `quickfix` action:
+
+>text
+    Fix SC2086: Double quote to prevent globbing and word splitting.
 <
-There is also one whole-file action, with the kind
-`source.fixAll.shellcheck`: >text
 
-  Fix all shellcheck issues
+There is also one whole-file action, with the kind `source.fixAll.shellcheck`:
+
+>text
+    Fix all shellcheck issues
 <
+
 That whole-file edit produces the same text as `shellcheck --format=diff`: it
-follows shellcheck's precedence ordering and drops fixes that overlap an
-earlier fix. Findings with no fix still appear as diagnostics but
-have no action.
+follows shellcheck’s precedence ordering and drops fixes that overlap an
+earlier fix. Findings with no fix still appear as diagnostics but have no
+action.
 
 A single fix can contain several replacements, such as the opening and closing
 quotes required by SC2086. They are applied together as one action. If any
 replacement cannot be placed in the buffer, the entire fix is skipped.
 
-SOURCED FILES ~
+
+==============================================================================
+5. Sourced files                       *lint-actions-shellcheck-sourced-files*
 
 shellcheck follows `source` directives and may report findings in other files.
 Only findings for the linted buffer become actions; the rest are ignored.
+
+Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
 
 vim:tw=78:ts=8:noet:ft=help:norl:
