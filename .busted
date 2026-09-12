@@ -1,0 +1,16 @@
+-- Run every spec with `busted`; pass paths or Busted options through
+-- `BUSTED_ARGS` when a focused run is useful.
+return {
+  _all = {
+    ROOT = { 'tests' },
+    lua = 'nlua',
+    helper = 'tests/init.lua',
+    pattern = '_spec%.lua$',
+    sort = true,
+    -- Neovim caches Lua modules in `vim` as well as `package.loaded`.
+    -- Unloading only package.loaded between specs splits LSP client state.
+    -- Stateful specs reset their buffers, clients, and plugin state explicitly.
+    ['auto-insulate'] = false,
+  },
+  default = {},
+}

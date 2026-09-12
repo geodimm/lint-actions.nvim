@@ -3,11 +3,11 @@
 #
 # Usage: scripts/gen-docs.sh <destination>
 #
-# Writes a complete doc/ directory into <destination>. `make docs` passes the
-# repository root; `make docs-check` passes a temporary directory and diffs the
+# Writes a complete doc/ directory into <destination>. `just docs` passes the
+# repository root; `just docs-check` passes a temporary directory and diffs the
 # result against the committed one.
 #
-# PANVIMDOC_DIR and PANDOC_VERSION come from the Makefile, which owns the pins.
+# The Nix development shell provides panvimdoc and its pinned Pandoc dependency.
 
 set -euo pipefail
 
@@ -21,25 +21,12 @@ DOCUMENTS=(
 )
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-panvimdoc="$root/${PANVIMDOC_DIR:?PANVIMDOC_DIR is not set}"
-want_pandoc="${PANDOC_VERSION:?PANDOC_VERSION is not set}"
 
 if [ $# -ne 1 ]; then
   echo >&2 "usage: $0 <destination>"
   exit 2
 fi
 dest="$1"
-
-# panvimdoc is a thin wrapper around Pandoc and a set of Lua filters, so the
-# output tracks the Pandoc version. Pin it, or the check below turns into a
-# diff between whichever release the contributor and CI happen to have.
-have_pandoc="$(pandoc --version 2>/dev/null | head -n 1 | cut -d' ' -f2 || true)"
-if [ "$have_pandoc" != "$want_pandoc" ]; then
-  echo >&2 "Pandoc ${want_pandoc} is required, found ${have_pandoc:-nothing}."
-  echo >&2 "brew install pandoc, or take the build from"
-  echo >&2 "https://github.com/jgm/pandoc/releases/tag/${want_pandoc}."
-  exit 1
-fi
 
 mkdir -p "$dest/doc"
 cd "$dest"
@@ -53,10 +40,9 @@ for document in "${DOCUMENTS[@]}"; do
   # --demojify is deliberately absent. Its filter also swallows a colon that
   # follows inline code, turning "the kind `source.fixAll.shellcheck`: applies"
   # into one word. The Markdown sources carry no emoji, so it buys nothing.
-  if ! out="$(GITHUB_ACTIONS=false "$panvimdoc/panvimdoc.sh" \
+  if ! out="$(GITHUB_ACTIONS=false panvimdoc \
     --project-name "$project" \
     --input-file "$root/$source" \
-    --scripts-dir "$panvimdoc/scripts" \
     --description "$description" \
     --shift-heading-level-by -1 \
     --toc true \
@@ -79,7 +65,7 @@ done
 # tags, which panvimdoc emits without complaining and plugin managers swallow
 # behind a pcall. Neovim reports E154 on stderr but still exits 0, hence the
 # stderr test.
-if ! err="$(nvim --headless -u NONE -i NONE -c 'helptags doc' -c 'quitall' 2>&1)" || [ -n "$err" ]; then
+if ! err="$(NVIM_LOG_FILE=/dev/null nvim --headless -u NONE -i NONE -c 'helptags doc' -c 'quitall' 2>&1)" || [ -n "$err" ]; then
   printf '%s\n' "$err" >&2
   echo >&2 "helptags rejected the generated vimdoc."
   exit 1
