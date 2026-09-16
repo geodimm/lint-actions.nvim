@@ -44,6 +44,7 @@ for document in "${DOCUMENTS[@]}"; do
     --project-name "$project" \
     --input-file "$root/$source" \
     --description "$description" \
+    --vim-version "NVIM v0.11+" \
     --shift-heading-level-by -1 \
     --toc true \
     --dedup-subheadings true \

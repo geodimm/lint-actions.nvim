@@ -1,4 +1,5 @@
 *lint-actions-markdownlint.txt*         markdownlint actions through nvim-lint
+                             For NVIM v0.11+    Last change: 2026 September 16
 
 ==============================================================================
 Table of Contents                *lint-actions-markdownlint-table-of-contents*
