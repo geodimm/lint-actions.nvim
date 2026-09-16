@@ -44,7 +44,6 @@ for document in "${DOCUMENTS[@]}"; do
     --project-name "$project" \
     --input-file "$root/$source" \
     --description "$description" \
-    --vim-version "NVIM v0.11+" \
     --shift-heading-level-by -1 \
     --toc true \
     --dedup-subheadings true \
@@ -54,9 +53,12 @@ for document in "${DOCUMENTS[@]}"; do
     exit 1
   fi
   # panvimdoc pads the blank lines inside code blocks; .editorconfig trims
-  # trailing whitespace everywhere. sed -i is not portable, hence the copy.
+  # trailing whitespace everywhere. It also stamps today's local date on the
+  # line under the title, which would make docs-check fail in another timezone
+  # or on any later day, so drop that line.
+  # sed -i is not portable, hence the copy.
   tmp="$(mktemp)"
-  sed -e 's/[[:space:]]*$//' "doc/$project.txt" >"$tmp"
+  sed -e 's/[[:space:]]*$//' -e '2{/Last change:/d;}' "doc/$project.txt" >"$tmp"
   mv "$tmp" "doc/$project.txt"
 done
 
