@@ -1,4 +1,5 @@
 *lint-actions.txt*                     Native LSP actions for structured fixes
+                             For NVIM v0.11+    Last change: 2026 September 16
 
 ==============================================================================
 Table of Contents                             *lint-actions-table-of-contents*
@@ -64,7 +65,7 @@ manages undo.
 - Neovim 0.11 or newer.
 - The core has no dependencies.
 - The bundled integrations need nvim-lint
-    <https://github.com/mfussenegger/nvim-lint>.
+<https://github.com/mfussenegger/nvim-lint>.
 
 
 ==============================================================================

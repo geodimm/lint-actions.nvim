@@ -1,4 +1,5 @@
 *lint-actions-golangci.txt*            golangci-lint actions through nvim-lint
+                             For NVIM v0.11+    Last change: 2026 September 16
 
 ==============================================================================
 Table of Contents                    *lint-actions-golangci-table-of-contents*
