@@ -1,5 +1,4 @@
 *lint-actions.txt*                     Native LSP actions for structured fixes
-                             For NVIM v0.11+    Last change: 2026 September 16
 
 ==============================================================================
 Table of Contents                             *lint-actions-table-of-contents*

@@ -1,5 +1,4 @@
 *lint-actions-sarif.txt*                            reusable SARIF fix adapter
-                             For NVIM v0.11+    Last change: 2026 September 16
 
 ==============================================================================
 Table of Contents                       *lint-actions-sarif-table-of-contents*
