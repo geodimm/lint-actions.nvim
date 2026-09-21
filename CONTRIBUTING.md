@@ -120,9 +120,6 @@ cross-reference. The conventions it cannot check for you:
 
 - No emoji, and no table wider than two short columns. Both get mangled.
 
-- Link within a document as `[Providers](#providers)`, where the text is the target heading. Link across
-  documents as `` `:h lint-actions-sarif.txt` ``.
-
 - `##### name({opts})` is what gives an API entry its bare `*name()*` tag.
 
 - GitHub-only content goes between `<!-- panvimdoc-ignore-start -->` and `<!-- panvimdoc-ignore-end -->`.
