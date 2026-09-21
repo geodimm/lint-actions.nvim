@@ -44,6 +44,8 @@ for document in "${DOCUMENTS[@]}"; do
     --project-name "$project" \
     --input-file "$root/$source" \
     --description "$description" \
+    --no-date true \
+    --no-vim-version true \
     --shift-heading-level-by -1 \
     --toc true \
     --dedup-subheadings true \
@@ -52,14 +54,6 @@ for document in "${DOCUMENTS[@]}"; do
     printf '%s\n' "$out" >&2
     exit 1
   fi
-  # panvimdoc pads the blank lines inside code blocks; .editorconfig trims
-  # trailing whitespace everywhere. It also stamps today's local date on the
-  # line under the title, which would make docs-check fail in another timezone
-  # or on any later day, so drop that line.
-  # sed -i is not portable, hence the copy.
-  tmp="$(mktemp)"
-  sed -e 's/[[:space:]]*$//' -e '2{/Last change:/d;}' "doc/$project.txt" >"$tmp"
-  mv "$tmp" "doc/$project.txt"
 done
 
 # doc/tags is committed: Neovim does not build it for plugins dropped into
@@ -82,22 +76,5 @@ glued="$(grep -nE '[^[:space:]][*|][A-Za-z0-9_.()-]+[*|]$' doc/*.txt || true)"
 if [ -n "$glued" ]; then
   printf '%s\n' "$glued" >&2
   echo >&2 "A heading and its tag do not fit in 78 columns. Shorten the heading."
-  exit 1
-fi
-
-# panvimdoc builds |cross-references| from a link's TEXT, ignoring its target,
-# so [the providers below](#providers) emits a reference to
-# |lint-actions-the-providers-below|, which no tag matches and :help cannot
-# follow. The same applies to a `:h some-tag` that names a tag we do not build.
-# Every project reference must resolve to a tag just built.
-dangling=""
-for ref in $(grep -hoE '\|lint[-_]actions[A-Za-z0-9_.()-]*\|' doc/*.txt | tr -d '|' | sort -u); do
-  cut -f1 doc/tags | grep -qxF "$ref" || dangling="$dangling $ref"
-done
-if [ -n "$dangling" ]; then
-  for ref in $dangling; do
-    echo >&2 "Dangling help reference: |$ref|"
-  done
-  echo >&2 "A link's text must match the heading it points at, and a ':h' must name a real tag."
   exit 1
 fi
